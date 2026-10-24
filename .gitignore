@@ -3,3 +3,23 @@
 *.key
 ssl/*.crt
 *.bak
+# Respaldos locales de PostgreSQL
+postgres/*.dump
+postgres/estructura_actual.sql
+
+# Certificados y claves privadas
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Configuracion local y secretos
+.env
+.env.*
+!.env.example
+
+# Certificados locales de PostgreSQL
+postgres/certs/
+# Entorno local de pruebas PostgreSQL
+docker-compose.test.yml
+prueba_tls/

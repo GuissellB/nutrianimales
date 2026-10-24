@@ -1,0 +1,33 @@
+services:
+  postgres-tls-init:
+    image: postgres:16-alpine
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/scripts/instalar-certificados.sh"]
+    volumes:
+      - postgres_tls_data:/tls
+      - ./postgres/certs:/certs:ro
+      - ./postgres/scripts:/scripts:ro
+    restart: "no"
+
+  postgres:
+    depends_on:
+      postgres-tls-init:
+        condition: service_completed_successfully
+    volumes:
+      - postgres_tls_data:/tls:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command:
+      - postgres
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/tls/server.crt
+      - -c
+      - ssl_key_file=/tls/server.key
+      - -c
+      - log_min_duration_statement=1000
+
+volumes:
+  postgres_tls_data:
