@@ -1,414 +1,115 @@
-> PostgreSQL (Persona 2): [guía de instalación y conexión para el equipo](postgres/README.md). Consulte esa guía para la integración actual de PostgreSQL; el documento siguiente conserva la entrega de infraestructura de Persona 1.
+# NutriAnimales
 
-\# NutriAnimales — Infraestructura y seguridad
+Infraestructura y seguridad para el proyecto NutriAnimales S.A., desarrollada con **Docker, Nginx y PostgreSQL 16**.
 
+> **¿Necesitas configurar la base de datos o conectar tu servicio?**
+>
+> Consulta la **[guía de PostgreSQL para el equipo](postgres/README.md)**. Allí están los requisitos, la primera instalación, los secretos, los certificados, los usuarios y permisos, la conexión desde Docker y la solución de problemas.
+>
+> Si la base ya está instalada, ve directamente a **[Iniciar NutriAnimales en días posteriores](postgres/README.md#3-iniciar-nutrianimales-en-días-posteriores)**. La configuración de la base se mantiene en esa guía.
 
+## Documentación y archivos de referencia
 
-\## 1. Descripción
+| Necesitas… | Consulta |
+|---|---|
+| Instalar PostgreSQL y configurar sus credenciales y certificados | [Guía de PostgreSQL](postgres/README.md#2-primera-instalación-una-sola-vez-por-equipo) |
+| Elegir la cuenta de base de datos para tu componente | [Usuarios y permisos](postgres/README.md#4-qué-usuario-de-postgresql-debe-usar-cada-componente) |
+| Conectar n8n u otro servicio a la base | [Conexión desde Docker](postgres/README.md#5-configurar-la-conexión-desde-docker) |
+| Consultar la infraestructura de Nginx y PostgreSQL | [Compose principal](docker-compose.yml) |
+| Revisar la configuración segura de PostgreSQL | [Overlay de PostgreSQL](docker-compose.postgres.yml) |
+| Consultar el cliente PostgreSQL de referencia | [Compose del cliente](docker-compose.client.yml) |
+| Revisar las capturas de la entrega | [Evidencias](evidencias/) · [PostgreSQL](evidencias/06_postgresql/Fotos/) |
 
+## Componentes del entorno
 
+| Componente | Estado y acceso |
+|---|---|
+| **Nginx** | HTTP en `http://localhost:8080` y HTTPS en `https://localhost:8443` |
+| **PostgreSQL 16** | TLS y SCRAM-SHA-256; acceso desde la red Docker, sin publicar el puerto 5432 al host |
+| **Base NutriAnimales** | Esquema, datos de ejemplo, auditoría, roles y baseline de seguridad |
+| **n8n, Telegram y monitoreo** | Integración a cargo de sus respectivos responsables |
 
-Este proyecto forma parte de una iniciativa de seguridad para NutriAnimales. Esta entrega corresponde a la \*\*Persona 1: Susana Herrera\*\*, responsable de la infraestructura Docker, Nginx, SSL/TLS y medidas de hardening.
+Los certificados autofirmados se utilizan para el entorno local de desarrollo.
 
-
-
-La configuración actual permite probar Nginx mediante HTTP y HTTPS en un entorno local. La integración completa con PostgreSQL y los demás componentes se realizará posteriormente con el equipo.
-
-
-
-\## 2. Tecnologías utilizadas
-
-
-
-\- Docker Desktop y Docker Compose
-
-\- Nginx `1.28-alpine`
-
-\- PostgreSQL `16-alpine` (declarado en Compose; pendiente de integración)
-
-\- Certificados TLS autofirmados para pruebas locales
-
-\- Git y GitHub
-
-\- PowerShell en Windows
-
-
-
-\## 3. Estructura del proyecto
-
-
+## Estructura del repositorio
 
 ```text
-
 nutrianimales/
-
-├── docker-compose.yml
-
-├── .env.example
-
-├── .gitignore
-
-├── README.md
-
-├── evidencias/
-
+├── README.md                    # Punto de entrada y enlaces para el equipo
+├── docker-compose.yml           # Infraestructura principal
+├── docker-compose.postgres.yml  # TLS, autenticación y configuración PostgreSQL
+├── docker-compose.client.yml    # Cliente de conexión opcional
+├── .env.example                 # Referencia de configuración local
 ├── nginx/
-
-│   └── default.conf
-
-├── ssl/
-
+│   └── default.conf             # Configuración HTTP/HTTPS
 ├── postgres/
-
-└── logs/
-
+│   ├── README.md                # Instalación y conexión a la base de datos
+│   ├── 01_schema.sql … 06_verificaciones.sql
+│   ├── pg_hba.conf              # Reglas de autenticación
+│   └── scripts/                # Configuración, certificados e instalación
+└── evidencias/                  # Capturas por componente
 ```
 
+Los secretos y certificados de cada equipo se generan localmente siguiendo la guía de PostgreSQL; no forman parte del repositorio.
 
+## Consultar Nginx
 
-Los directorios `postgres/` y `logs/` están reservados para la integración posterior. El contenido puede variar conforme avance el proyecto.
-
-
-
-\## 4. Requisitos previos
-
-
-
-Instalar y comprobar:
-
-
-
-\- Docker Desktop con el motor de contenedores iniciado.
-
-\- Git.
-
-\- PowerShell en Windows.
-
-
-
-Los comandos siguientes se ejecutan desde la carpeta del proyecto.
-
-
-
-\## 5. Configuración inicial
-
-
-
-\### 5.1 Variables de entorno
-
-
-
-Crear el archivo local `.env` a partir de `.env.example`:
-
-
+Después de seguir la guía de instalación, estos comandos permiten comprobar el estado de los servicios y la configuración de Nginx. Ejecutarlos en PowerShell desde la raíz del proyecto:
 
 ```powershell
-
-Copy-Item .env.example .env
-
-notepad .env
-
-```
-
-
-
-Configurar valores locales adecuados antes de utilizar PostgreSQL. No subir `.env` a GitHub ni compartir contraseñas reales.
-
-
-
-\### 5.2 Certificado TLS local
-
-
-
-La clave privada y el certificado local no se incluyen en el repositorio. Cada integrante debe generarlos en su computadora.
-
-
-
-Desde PowerShell, ejecutar:
-
-
-
-```powershell
-
-New-Item -ItemType Directory -Force .\\ssl
-
-```
-
-
-
-```powershell
-
-docker run --rm -v "${PWD}/ssl:/certs" alpine:3.22 sh -c "apk add --no-cache openssl \&\& openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/localhost.key -out /certs/localhost.crt -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'"
-
-```
-
-
-
-Este certificado es autofirmado y está destinado exclusivamente a pruebas locales. No utilizarlo como certificado de producción.
-
-
-
-\## 6. Iniciar Nginx
-
-
-
-Para iniciar únicamente el servicio de Nginx:
-
-
-
-```powershell
-
-docker compose up -d nginx
-
-```
-
-
-
-Comprobar el estado:
-
-
-
-```powershell
-
-docker compose ps
-
-```
-
-
-
-Validar la configuración:
-
-
-
-```powershell
-
-docker compose exec nginx nginx -t
-
-```
-
-
-
-Si se modifica `nginx/default.conf`, validar primero los cambios y recargar Nginx:
-
-
-
-```powershell
-
-docker compose exec nginx nginx -s reload
-
-```
-
-
-
-\## 7. Pruebas de funcionamiento
-
-
-
-\### HTTP
-
-
-
-Abrir en el navegador:
-
-
-
-http://localhost:8080
-
-
-
-O ejecutar:
-
-
-
-```powershell
-
+$compose = @('-f','docker-compose.yml','-f','docker-compose.postgres.yml')
+docker compose @compose ps -a
+docker compose @compose exec nginx nginx -t
 curl.exe -i http://localhost:8080
-
 ```
 
-
-
-\### HTTPS
-
-
-
-Abrir en el navegador:
-
-
-
-https://localhost:8443
-
-
-
-Como el certificado es autofirmado, las herramientas de prueba pueden advertir que no es confiable. Para comprobar la respuesta local mediante curl:
-
-
+Para comprobar HTTPS con el certificado local autofirmado:
 
 ```powershell
-
 curl.exe -k -I https://localhost:8443
-
 ```
 
-
-
-La opción `-k` desactiva la validación del certificado en esa prueba. No debe utilizarse como solución para conexiones de producción.
-
-
-
-\### Encabezados de seguridad
-
-
-
-La configuración incluye:
-
-
-
-\- `X-Frame-Options: DENY`
-
-\- `X-Content-Type-Options: nosniff`
-
-\- `Referrer-Policy: strict-origin-when-cross-origin`
-
-\- `Content-Security-Policy: default-src 'self'; frame-ancestors 'none';`
-
-\- `Strict-Transport-Security: max-age=31536000` en el bloque HTTPS
-
-
-
-HSTS indica al navegador que utilice HTTPS durante el periodo configurado. Su utilidad depende de que el certificado y el dominio sean confiables; la configuración local no equivale a una implementación de producción.
-
-
-
-\## 8. Medidas de seguridad configuradas
-
-
-
-\- Red Docker propia: `nutrianimales-net`.
-
-\- PostgreSQL sin puertos publicados directamente en el host.
-
-\- Montajes de configuración de Nginx y certificados como solo lectura.
-
-\- Restricción de capacidades de Nginx mediante `cap\_drop` y `cap\_add`.
-
-\- `no-new-privileges` para los servicios configurados.
-
-\- Variables de entorno locales excluidas de Git.
-
-\- Clave privada excluida de Git.
-
-\- Permisos NTFS restringidos para el archivo `.env` local.
-
-
-
-La red está configurada como `bridge`, no como red `internal`. La conectividad y el aislamiento deberán revisarse según las necesidades de la integración final.
-
-
-
-\## 9. Estado de la integración
-
-
-
-\### Configurado y probado en el entorno local
-
-
-
-\- Nginx por HTTP y HTTPS.
-
-\- Certificado autofirmado para Nginx.
-
-\- Encabezados de seguridad, incluido HSTS.
-
-\- Configuración Docker Compose válida.
-
-\- PostgreSQL sin publicación de puertos en el archivo Compose.
-
-\- Exclusión de archivos sensibles mediante `.gitignore`.
-
-
-
-\### Pendiente de integración o verificación
-
-
-
-\- Servicios N8N y pgAdmin y sus usuarios no-root.
-
-\- Configuración y prueba de autenticación SCRAM en PostgreSQL.
-
-\- SSL/TLS propio de PostgreSQL.
-
-\- Usuario de solo lectura `agente\_ia`, en coordinación con la Persona 2.
-
-\- Verificación de permisos del volumen de datos una vez creado.
-
-\- Integración completa y pruebas conjuntas de los servicios.
-
-
-
-Los puntos pendientes no deben considerarse completados hasta que se implementen y se documenten sus pruebas.
-
-
-
-\## 10. Evidencias
-
-
-
-Las capturas de las pruebas se almacenan en `evidencias/`, organizadas por categoría:
-
-
-
-\- `01\_entorno/`: entorno de ejecución.
-
-\- `02\_docker/`: servicios, puertos y red.
-
-\- `03\_nginx/`: configuración y pruebas HTTP.
-
-\- `04\_ssl/`: certificado y pruebas HTTPS.
-
-\- `05\_hardening/`: encabezados, permisos y controles de seguridad.
-
-
-
-Antes de compartir evidencias, verificar que no muestren contraseñas, archivos `.env` ni claves privadas.
-
-
-
-\## 11. Buenas prácticas para Git
-
-
-
-No incorporar al repositorio:
-
-
-
-\- `.env`
-
-\- Claves privadas (`\*.key`)
-
-\- Certificados locales excluidos por `.gitignore`
-
-\- Archivos de respaldo de configuración (`\*.bak`)
-
-
-
-Cada integrante debe crear sus archivos de entorno y certificados locales. Antes de hacer `commit` o `push`, revisar el estado de Git y confirmar que no haya secretos incluidos.
-
-
-
-\## 12. Responsabilidades
-
-
-
-\- \*\*Persona 1:\*\* Docker, Nginx, SSL/TLS y hardening de infraestructura.
-
-\- \*\*Persona 2:\*\* PostgreSQL, esquema, datos, triggers, RBAC y baseline.
-
-\- \*\*Persona 3:\*\* N8N, Telegram y sus flujos.
-
-\- \*\*Persona 4:\*\* Filebeat/Loki y flujos de auditoría.
-
-\- \*\*Persona 5:\*\* pruebas de ataques, gestión de secretos, informe, README e integración final.
-
-
-
+La opción `-k` omite la validación del certificado únicamente en esta comprobación local de Nginx. La conexión a PostgreSQL se configura con validación de certificado y nombre del servidor, según su guía.
+
+Si se modifica `nginx/default.conf`, validar antes de recargar:
+
+```powershell
+docker compose @compose exec nginx nginx -t
+if ($LASTEXITCODE -ne 0) { throw 'Revisar la configuración de Nginx antes de recargar' }
+docker compose @compose exec nginx nginx -s reload
+```
+
+## Seguridad y conservación de datos
+
+- Red Docker compartida: `nutrianimales-net`.
+- PostgreSQL sin puerto publicado al host; los servicios se conectan mediante `postgres:5432` dentro de Docker.
+- Configuraciones y certificados montados en solo lectura donde corresponde.
+- Restricción de capacidades de Nginx y uso de `no-new-privileges`.
+- Encabezados de seguridad en Nginx: CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` y HSTS en HTTPS.
+- Cuentas PostgreSQL con permisos según su función; las aplicaciones no deben usar el administrador.
+- `.env`, `.secrets/`, claves privadas, certificados locales y respaldos excluidos de Git.
+
+**Conservar los volúmenes existentes.** No volver a inicializar una base con datos ni ejecutar `docker compose down -v` sobre el proyecto de trabajo. Antes de publicar capturas o cambios, comprobar que no incluyan secretos.
+
+La red principal utiliza el controlador `bridge`; la incorporación de nuevos servicios se coordina con el equipo.
+
+## Evidencias de la entrega
+
+| Carpeta | Contenido |
+|---|---|
+| [01_entorno](evidencias/01_entorno/) | Entorno de ejecución |
+| [02_docker](evidencias/02_docker/) | Servicios, puertos y red |
+| [03_nginx](evidencias/03_nginx/) | Configuración y pruebas HTTP |
+| [04_ssl](evidencias/04_ssl/) | Certificados y pruebas HTTPS |
+| [05_hardening](evidencias/05_hardening/) | Encabezados, permisos y controles de seguridad |
+| [06_postgresql](evidencias/06_postgresql/Fotos/) | Esquema, datos, auditoría, RBAC, TLS y baseline |
+
+## Responsabilidades del equipo
+
+| Persona | Responsabilidad |
+|---|---|
+| **1 — Susana Herrera** | Docker, Nginx, SSL/TLS y hardening de infraestructura |
+| **2 — Guissell Betancur** | PostgreSQL, esquema, datos, auditoría, RBAC y baseline |
+| **3** | n8n, Telegram y sus flujos |
+| **4** | Filebeat/Loki y flujos de auditoría |
+| **5** | Pruebas de ataques, gestión de secretos, informe e integración final |
