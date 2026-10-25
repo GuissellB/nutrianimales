@@ -32,7 +32,10 @@ CREATE OR REPLACE VIEW public.reporte_ventas_gerencia AS
 SELECT fecha::date AS fecha, COUNT(*) AS cantidad_ventas, SUM(precio_total) AS total_ventas
 FROM public.ventas GROUP BY fecha::date;
 
-GRANT CONNECT ON DATABASE nutrianimales_db TO rol_gerente, rol_ti, rol_auditor, agente_ia;
+-- La base se obtiene de la conexion, sin nombres ni secretos incrustados.
+SELECT current_database() AS db_name \gset
+REVOKE ALL ON DATABASE :"db_name" FROM PUBLIC;
+GRANT CONNECT ON DATABASE :"db_name" TO rol_gerente, rol_ti, rol_auditor, agente_ia;
 GRANT USAGE ON SCHEMA public TO rol_gerente, rol_ti, rol_auditor, agente_ia;
 
 GRANT SELECT ON public.reporte_ventas_gerencia TO rol_gerente;
@@ -47,6 +50,7 @@ GRANT SELECT ON public.plantas, public.productos, public.materias_primas,
 -- Restricciones explicitas. El propietario/superusuario sigue teniendo sus facultades.
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.auditoria_datos FROM rol_gerente, rol_ti, rol_auditor, agente_ia;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.fn_auditoria() FROM PUBLIC;
 
 -- Los permisos para futuros objetos requieren GRANT adicionales o ALTER DEFAULT PRIVILEGES.

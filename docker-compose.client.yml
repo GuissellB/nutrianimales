@@ -1,0 +1,21 @@
+# Cliente de referencia: combinar con los dos Compose principales.
+# Interactivo: docker compose ... --profile tools run --rm pg-client
+services:
+  pg-client:
+    image: postgres:16-alpine
+    profiles: [tools]
+    entrypoint: [psql, -X, -W]
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGDATABASE: ${POSTGRES_DB:?Configurar POSTGRES_DB}
+      PGUSER: agente_ia
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /certs/server.crt
+      PGCHANNELBINDING: require
+    volumes:
+      - ./postgres/certs/server.crt:/certs/server.crt:ro
+    networks:
+      - nutrianimales-net
+    security_opt:
+      - no-new-privileges:true

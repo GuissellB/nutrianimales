@@ -1,25 +1,39 @@
-.env
-*.pem
-*.key
-ssl/*.crt
-*.bak
-# Respaldos locales de PostgreSQL
-postgres/*.dump
-postgres/estructura_actual.sql
-
-# Certificados y claves privadas
-*.key
-*.pem
-*.p12
-*.pfx
-
-# Configuracion local y secretos
+# Configuracion y secretos locales
 .env
 .env.*
 !.env.example
+.secrets/
+*.secret
+*.pgpass
+*rbac-secrets*.json
 
-# Certificados locales de PostgreSQL
+# Certificados, solicitudes y claves privadas
 postgres/certs/
-# Entorno local de pruebas PostgreSQL
-docker-compose.test.yml
+*.key
+*.pem
+*.crt
+*.cer
+*.csr
+*.srl
+*.p12
+*.pfx
+
+# Respaldos y exportaciones locales
+*.bak
+*.dump
+*.backup
+*.sql.gz
+*.tar
+backups/
+backup*.sql
+*_backup.sql
+respaldo*.sql
+postgres/estructura_actual.sql
+
+# Entornos locales de pruebas
+.postgres-test/
 prueba_tls/
+docker-compose.test.yml
+
+# Configuracion local del editor
+.vscode/

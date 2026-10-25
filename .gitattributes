@@ -1,0 +1,8 @@
+*.sql text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.yml text eol=lf
+*.conf text eol=lf
+*.md text eol=lf
+.gitignore text eol=lf
+.env.example text eol=lf

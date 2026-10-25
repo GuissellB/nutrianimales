@@ -1,3 +1,5 @@
+> PostgreSQL (Persona 2): [guía de instalación y conexión para el equipo](postgres/README.md). Consulte esa guía para la integración actual de PostgreSQL; el documento siguiente conserva la entrega de infraestructura de Persona 1.
+
 \# NutriAnimales — Infraestructura y seguridad
 
 

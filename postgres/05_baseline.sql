@@ -6,6 +6,7 @@ INSERT INTO public.pg_settings_baseline
     (name, valor_esperado)
 VALUES
     ('ssl', 'on'),
+    ('ssl_min_protocol_version', 'TLSv1.2'),
     ('password_encryption', 'scram-sha-256'),
     ('log_min_duration_statement', '1000')
 ON CONFLICT (name)

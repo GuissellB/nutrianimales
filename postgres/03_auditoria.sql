@@ -1,5 +1,5 @@
 -- NutriAnimales S.A. | Auditoria segura PostgreSQL 16
--- Ejecutar como postgres DESPUES de 01_schema.sql y 02_seed.sql.
+-- Ejecutar como administrador DESPUES de 01_schema.sql, ANTES de 02_seed.sql.
 -- Idempotente para reinstalacion local; NO elimina filas de auditoria.
 -- Importante: SESSION_USER identifica la cuenta PostgreSQL, no a cada usuario de N8N.
 
