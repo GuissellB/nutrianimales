@@ -46,6 +46,11 @@ GRANT SELECT ON public.auditoria_datos, public.backups, public.alertas_auditoria
 GRANT SELECT ON public.plantas, public.productos, public.materias_primas,
     public.lotes_produccion, public.ventas, public.clientes,
     public.control_calidad, public.gastos TO agente_ia;
+-- Monitoreo de n8n: solo lectura, con visibilidad de sesiones de otros usuarios.
+GRANT SELECT ON public.auditoria_datos, public.backups,
+    public.alertas_auditoria, public.pg_settings_baseline TO agente_ia;
+GRANT pg_read_all_stats TO agente_ia;
+-- 07_monitoreo_n8n.sql instala la extension y autoriza solo sus funciones de lectura.
 
 -- Restricciones explicitas. El propietario/superusuario sigue teniendo sus facultades.
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.auditoria_datos FROM rol_gerente, rol_ti, rol_auditor, agente_ia;

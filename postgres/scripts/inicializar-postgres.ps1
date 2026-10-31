@@ -53,13 +53,13 @@ try {
 $directory = '/tmp/nutrianimales-init-' + [guid]::NewGuid().ToString('N')
 $null = Invoke-Docker -Arguments @('exec', $container, 'mkdir', '-m', '700', $directory)
 try {
-    $files = @('01_schema.sql', '03_auditoria.sql', '02_seed.sql', '04_rbac.sql', '05_baseline.sql', '06_verificaciones.sql')
+    $files = @('01_schema.sql', '03_auditoria.sql', '02_seed.sql', '04_rbac.sql', '07_monitoreo_n8n.sql', '05_baseline.sql', '06_verificaciones.sql')
     foreach ($file in $files) {
         $null = Invoke-Docker -Arguments @('cp', (Join-Path $script:RepoRoot "postgres/$file"), "${container}:$directory/$file")
     }
     $includes = ($files | Where-Object { $_ -notin @('05_baseline.sql','06_verificaciones.sql') } | ForEach-Object { "\i $directory/$_" }) -join "`n"
     # Desactivar logs SQL de esta sesion antes de enviar verificadores de contrasena.
-    $sql = "SET log_statement='none'; SET log_min_duration_statement=-1; SET log_min_error_statement='panic';`nBEGIN;`n$guard`n$includes`n$($passwordSql -join "`n")`nSET log_min_duration_statement=1000;`n\i $directory/05_baseline.sql`n\i $directory/06_verificaciones.sql`nCOMMIT;"
+    $sql = "SET pg_stat_statements.track='none'; SET log_statement='none'; SET log_min_duration_statement=-1; SET log_min_error_statement='panic';`nBEGIN;`n$guard`n$includes`n$($passwordSql -join "`n")`nSET pg_stat_statements.track=top; SET log_min_duration_statement=1000;`n\i $directory/05_baseline.sql`n\i $directory/06_verificaciones.sql`nCOMMIT;"
     $result = Invoke-AdminSql $container $sql
     Write-Host $result.Out
     Write-Host 'Instalacion atomica completada: esquema, auditoria, seed, RBAC, baseline y secretos SCRAM.'
