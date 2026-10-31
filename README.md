@@ -13,6 +13,7 @@ Infraestructura y seguridad para el proyecto NutriAnimales S.A., desarrollada co
 | Necesitas… | Consulta |
 |---|---|
 | Instalar PostgreSQL y configurar sus credenciales y certificados | [Guía de PostgreSQL](postgres/README.md#2-primera-instalación-una-sola-vez-por-equipo) |
+| Actualizar una base existente para habilitar las alertas de n8n | [Actualización de monitoreo](postgres/README.md#31-actualizar-una-base-ya-instalada-para-las-alertas-de-n8n) |
 | Elegir la cuenta de base de datos para tu componente | [Usuarios y permisos](postgres/README.md#4-qué-usuario-de-postgresql-debe-usar-cada-componente) |
 | Conectar n8n u otro servicio a la base | [Conexión desde Docker](postgres/README.md#5-configurar-la-conexión-desde-docker) |
 | Consultar la infraestructura de Nginx y PostgreSQL | [Compose principal](docker-compose.yml) |
@@ -44,7 +45,7 @@ nutrianimales/
 │   └── default.conf             # Configuración HTTP/HTTPS
 ├── postgres/
 │   ├── README.md                # Instalación y conexión a la base de datos
-│   ├── 01_schema.sql … 06_verificaciones.sql
+│   ├── 01_schema.sql … 07_monitoreo_n8n.sql
 │   ├── pg_hba.conf              # Reglas de autenticación
 │   └── scripts/                # Configuración, certificados e instalación
 └── evidencias/                  # Capturas por componente

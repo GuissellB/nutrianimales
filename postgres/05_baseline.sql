@@ -7,6 +7,8 @@ INSERT INTO public.pg_settings_baseline
 VALUES
     ('ssl', 'on'),
     ('ssl_min_protocol_version', 'TLSv1.2'),
+    ('shared_preload_libraries', current_setting('shared_preload_libraries')),
+    ('compute_query_id', 'on'),
     ('password_encryption', 'scram-sha-256'),
     ('log_min_duration_statement', '1000')
 ON CONFLICT (name)

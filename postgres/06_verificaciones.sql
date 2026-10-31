@@ -49,7 +49,9 @@ FROM pg_settings
 WHERE name IN (
     'ssl',
     'password_encryption',
-    'log_min_duration_statement'
+    'log_min_duration_statement',
+    'shared_preload_libraries',
+    'compute_query_id'
 )
 ORDER BY name;
 
@@ -130,4 +132,49 @@ BEGIN
    RAISE EXCEPTION 'Funcion de auditoria sin endurecimiento esperado';
  END IF;
 END $verify$;
-SELECT 'PASS: esquema, integridad declarada, triggers, RBAC, TLS, HBA y baseline' AS resultado;
+
+-- Monitoreo: comprobar privilegios efectivos, no solo la existencia de GRANT.
+DO $monitor$
+DECLARE r record;
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+     WHERE e.extname='pg_stat_statements' AND n.nspname='public')
+ OR NOT EXISTS (SELECT 1 FROM regexp_split_to_table(current_setting('shared_preload_libraries'), ',') AS x(lib)
+     WHERE btrim(lib, ' "')='pg_stat_statements')
+ OR current_setting('compute_query_id') <> 'on' THEN
+   RAISE EXCEPTION 'pg_stat_statements no esta cargado/instalado con compute_query_id=on';
+ END IF;
+ IF NOT pg_has_role('agente_ia','pg_read_all_stats','USAGE') THEN
+   RAISE EXCEPTION 'Falta lectura ampliada de estadisticas para agente_ia';
+ END IF;
+ FOR r IN SELECT schemaname,tablename FROM pg_tables WHERE schemaname='public' LOOP
+   IF NOT has_table_privilege('agente_ia',format('%I.%I',r.schemaname,r.tablename),'SELECT')
+      OR has_table_privilege('agente_ia',format('%I.%I',r.schemaname,r.tablename),'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER') THEN
+     RAISE EXCEPTION 'agente_ia debe tener solo SELECT sobre %.%',r.schemaname,r.tablename;
+   END IF;
+ END LOOP;
+ IF NOT has_table_privilege('agente_ia','public.pg_stat_statements','SELECT')
+ OR NOT has_function_privilege('agente_ia','public.pg_stat_statements(boolean)','EXECUTE')
+ OR NOT has_function_privilege('agente_ia','public.pg_stat_statements_info()','EXECUTE')
+ OR has_function_privilege('agente_ia','public.pg_stat_statements_reset(oid,oid,bigint)','EXECUTE') THEN
+   RAISE EXCEPTION 'Permisos de funciones/estadisticas incorrectos para agente_ia';
+ END IF;
+ IF pg_has_role('agente_ia','pg_write_all_data','USAGE')
+ OR pg_has_role('agente_ia','pg_monitor','USAGE')
+ OR pg_has_role('agente_ia','pg_read_server_files','USAGE')
+ OR pg_has_role('agente_ia','pg_write_server_files','USAGE')
+ OR pg_has_role('agente_ia','pg_execute_server_program','USAGE')
+ OR pg_has_role('agente_ia','pg_signal_backend','USAGE') THEN
+   RAISE EXCEPTION 'agente_ia tiene un rol privilegiado ajeno al monitoreo de lectura';
+ END IF;
+END $monitor$;
+
+-- Comprobar las consultas de lectura con los permisos del propio agente.
+SET ROLE agente_ia;
+SELECT current_user AS cuenta, (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()) AS tls;
+SELECT count(*) AS filas_estadisticas_visibles FROM public.pg_stat_statements;
+SELECT count(*) AS sesiones_visibles FROM pg_catalog.pg_stat_activity;
+SELECT count(*) AS bloqueos_visibles FROM pg_catalog.pg_locks;
+SELECT count(*) AS parametros_baseline FROM public.pg_settings_baseline;
+RESET ROLE;
+SELECT 'PASS: esquema, integridad, auditoria, RBAC de lectura, TLS y pg_stat_statements' AS resultado;
