@@ -1,0 +1,174 @@
+{
+  "name": "D4 - Duplicados en tablas críticas",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH duplicados AS (\n\n    SELECT 'plantas' AS tabla, 'nombre' AS campo,\n           nombre::text AS valor, COUNT(*) AS repeticiones\n    FROM public.plantas\n    WHERE nombre IS NOT NULL\n    GROUP BY nombre\n    HAVING COUNT(*) > 1\n\n    UNION ALL\n\n    SELECT 'productos', 'codigo',\n           codigo::text, COUNT(*)\n    FROM public.productos\n    WHERE codigo IS NOT NULL\n    GROUP BY codigo\n    HAVING COUNT(*) > 1\n\n    UNION ALL\n\n    SELECT 'materias_primas', 'nombre',\n           nombre::text, COUNT(*)\n    FROM public.materias_primas\n    WHERE nombre IS NOT NULL\n    GROUP BY nombre\n    HAVING COUNT(*) > 1\n\n    UNION ALL\n\n    SELECT 'lotes_produccion', 'codigo',\n           codigo::text, COUNT(*)\n    FROM public.lotes_produccion\n    WHERE codigo IS NOT NULL\n    GROUP BY codigo\n    HAVING COUNT(*) > 1\n\n    UNION ALL\n\n    SELECT 'clientes', 'correo',\n           correo::text, COUNT(*)\n    FROM public.clientes\n    WHERE correo IS NOT NULL\n    GROUP BY correo\n    HAVING COUNT(*) > 1\n\n    UNION ALL\n\n    SELECT 'gastos', 'descripcion',\n           descripcion::text, COUNT(*)\n    FROM public.gastos\n    WHERE descripcion IS NOT NULL\n    GROUP BY descripcion\n    HAVING COUNT(*) > 1\n),\nresumen AS (\n    SELECT\n        tabla,\n        campo,\n        SUM(repeticiones - 1)::int AS total_duplicados,\n        STRING_AGG(\n            valor || ' (' || repeticiones || ' registros)',\n            ', '\n        ) AS valores_duplicados\n    FROM duplicados\n    GROUP BY tabla, campo\n)\nSELECT\n    tabla,\n    campo,\n    total_duplicados,\n    valores_duplicados,\n    total_duplicados > 5 AS alerta_d4\nFROM resumen\nORDER BY total_duplicados DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "006ff146-30b6-4f87-8174-553bb441ae53",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5c9f513c-f639-49f0-ae52-e6adcb955b9e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "60fef14c-ad84-4eb1-9c91-759fcc28d5d8",
+              "leftValue": "={{ $json.total_duplicados }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7d581528-1239-40db-8871-eff3d3d402ec",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=⚠️ ALERTA D4 - NutriAnimales S.A.  \nTipo: Duplicados en tablas críticas \nSeveridad: ADVERTENCIA  \nTabla: {{ $json.tabla }} \nCampo evaluado: {{ $json.campo }} \nCantidad de códigos duplicados: {{ $json.total_duplicados }} \nValores duplicados: {{ $json.valores_duplicados }} \nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nUmbral: Más de 5 códigos duplicados. \nAcción recomendada: Revisar los registros duplicados y verificar la integridad de los datos.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -176
+      ],
+      "id": "0c68f8ee-015e-4cbd-9e70-a699ba027e60",
+      "name": "Send a text message",
+      "webhookId": "4dece15d-673a-45c1-9424-1d971ff3699a",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\n\nif (!memoria.alertasD4) {\n  memoria.alertasD4 = {};\n}\n\nconst nuevasAlertas = [];\n\nfor (const item of $input.all()) {\n  const dato = item.json;\n\n  const tabla = String(dato.tabla ?? '');\n  const campo = String(dato.campo ?? '');\n  const total = Number(dato.total_duplicados ?? 0);\n  const valores = String(dato.valores_duplicados ?? '');\n\n  if (total <= 5) continue;\n\n  // Identifica el conjunto de duplicados detectados.\n  const clave = `${tabla}:${campo}`;\n  const firma = JSON.stringify({ total, valores });\n\n  // Si no hubo cambios, no vuelve a notificar.\n  if (memoria.alertasD4[clave] === firma) {\n    continue;\n  }\n\n  // Guardar el último estado notificado.\n  memoria.alertasD4[clave] = firma;\n\n  nuevasAlertas.push(item);\n}\n\nreturn nuevasAlertas;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -144
+      ],
+      "id": "7016360a-bb2b-4ea8-a619-05f71dc8e30e",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4e6834a1-b3bd-4a0f-9c81-69003e88657a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "Khk4vJRYu8zs36ud",
+  "tags": []
+}

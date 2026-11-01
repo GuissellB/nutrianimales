@@ -1,0 +1,175 @@
+{
+  "name": "R1 – Consultas lentas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4ec80c14-9bd4-4cf0-97ae-7f915c85952e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    userid::text || ':' || dbid::text || ':' || queryid::text\n        AS identificador,\n    LEFT(query, 500) AS consulta,\n    calls,\n    ROUND(max_exec_time::numeric, 2) AS tiempo_maximo_ms\nFROM public.pg_stat_statements\nWHERE dbid = (\n    SELECT oid FROM pg_database\n    WHERE datname = current_database()\n)\n  AND queryid IS NOT NULL\n  AND query IS NOT NULL\n  AND max_exec_time > 1000;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f24ea82d-c292-4f65-bd5f-8ca23b8bf445",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "cd570b39-bc38-4ae2-91a2-5de2b7a3bd6d",
+              "leftValue": "={{ $json.alerta_r1 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        704,
+        -32
+      ],
+      "id": "c26b25f8-936e-4a3f-9b3e-f98f35d5d122",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=⚠️ ALERTA R1 - NutriAnimales S.A.  \n\nTipo: Consulta lenta detectada \nSeveridad: ADVERTENCIA  \nConsultas lentas detectadas: {{ $json.total_consultas_lentas }} \nTiempo máximo registrado: {{ $json.tiempo_maximo_ms }} ms \nConsultas SQL: {{ $json.consultas }} \nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nUmbral: Más de 1000 ms (1 segundo). \nAcción recomendada: Revisar las consultas SQL, índices y planes de ejecución para identificar posibles problemas de rendimiento.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "c8565e8b-1dd2-4d3c-b073-8d813b47319e",
+      "name": "Send a text message",
+      "webhookId": "5e5a344b-ddd7-4ed5-a5ef-b32515c46511",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\nmemoria.r1 ??= {};\n\nconst alertas = [];\n\nfor (const item of $input.all()) {\n  const dato = item.json;\n  const id = dato.identificador;\n  const llamadas = Number(dato.calls);\n  const maximo = Number(dato.tiempo_maximo_ms);\n  const anterior = memoria.r1[id];\n\n  // Solo alertar si aparece una consulta nueva\n  // o si se registra un nuevo tiempo máximo.\n  const nuevaAlerta =\n    anterior !== undefined &&\n    llamadas > anterior.calls &&\n    maximo > anterior.maximo;\n\n  if (nuevaAlerta) {\n    alertas.push({\n      json: {\n        alerta_r1: true,\n        consulta: dato.consulta,\n        tiempo_maximo_ms: maximo,\n        total_consultas_lentas: 1,\n        consultas: dato.consulta\n      }\n    });\n  }\n\n  memoria.r1[id] = {\n    calls: llamadas,\n    maximo: maximo\n  };\n}\n\nreturn alertas.length\n  ? alertas\n  : [{ json: { alerta_r1: false } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "8e920eb6-e958-4814-b309-beb0ab6dddc5",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f46a1c5b-3757-4741-b6f8-a8a80b0c0229",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "DBmN9KknvHiomd3Z",
+  "tags": []
+}

@@ -1,0 +1,175 @@
+{
+  "name": "D1 - DELETE masivo sin WHERE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2d4845ee-86d6-4ea4-8ab1-951269aeed6c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH deletes_detectados AS (\n    SELECT\n        query,\n        rows,\n        calls,\n        mean_exec_time\n    FROM public.pg_stat_statements\n    WHERE query ~* '^\\s*DELETE\\s+FROM\\s+'\n      AND query !~* '\\mWHERE\\M'\n      AND query ~* '\\m(clientes|ventas|productos|lotes_produccion|plantas|materias_primas|gastos|control_calidad)\\M'\n      AND rows > 100\n)\nSELECT\n    COUNT(*)::int AS total_deletes,\n    COALESCE(MAX(rows), 0)::bigint AS filas_eliminadas,\n    COALESCE(MAX(calls), 0)::bigint AS ejecuciones,\n    COALESCE(\n        STRING_AGG(query, ' | '),\n        'Ninguna'\n    ) AS consultas,\n    COUNT(*) > 0 AS alerta_d1\nFROM deletes_detectados;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "36f5f38d-0baa-40ad-9bff-095c4a69ae52",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "8a673d05-9bbb-4080-92c3-91f181d0b3cd",
+              "leftValue": "={{ $json.alerta_d1 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        464,
+        0
+      ],
+      "id": "60ba66eb-173d-40de-8afe-9e9e4cd1abab",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=🚨 ALERTA CRÍTICA D1 - NutriAnimales S.A.\n\nTipo: Posible DELETE masivo sin WHERE\nSeveridad: CRÍTICA\n\nConsultas sospechosas: {{ $json.total_deletes }}\nFilas eliminadas (acumuladas): {{ $json.filas_eliminadas }}\nEjecuciones: {{ $json.ejecuciones }}\nConsultas SQL: {{ $json.consultas }}\nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nUmbral: Más de 100 filas.\nAcción recomendada: Verificar las operaciones ejecutadas y revisar auditoria_datos.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -112
+      ],
+      "id": "0b0919e8-4bad-41b8-9983-03c2d03f3550",
+      "name": "Send a text message",
+      "webhookId": "6609b832-72ac-42cd-a662-fe25ee934b85",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\n\nif (!memoria.eventosD1) {\n  memoria.eventosD1 = {};\n}\n\nconst nuevos = [];\n\nfor (const item of $input.all()) {\n  const dato = item.json;\n\n  const consulta = String(dato.query ?? '');\n  const filas = Number(dato.rows ?? 0);\n  const llamadas = Number(dato.calls ?? 0);\n\n  // Cada combinación identifica un estado de la consulta.\n  const identificador = JSON.stringify({\n    consulta,\n    filas,\n    llamadas\n  });\n\n  if (memoria.eventosD1[identificador]) {\n    continue;\n  }\n\n  memoria.eventosD1[identificador] = true;\n  nuevos.push(item);\n}\n\nreturn nuevos;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -112
+      ],
+      "id": "e7518099-40e7-43cb-84fa-8473ab7398a2",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e1d6c61f-5743-482d-81bf-2dfa19e53a96",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "qPaAzrhRcrotYvv8",
+  "tags": []
+}

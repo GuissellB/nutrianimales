@@ -1,0 +1,174 @@
+{
+  "name": "D3 - Monitoreo de respaldos",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "07fb91b0-41ed-4b63-bc6d-05ffcb2199b1",
+              "leftValue": "={{ $json.alerta_d3 }}",
+              "rightValue": "={{ $json.ultimo_backup }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6da60b4d-50ce-4abc-8fda-ddb460a85fed",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "⚠️ ALERTA D3 - NutriAnimales S.A.  \nTipo: Backup obsoleto \nSeveridad: ADVERTENCIA  \nNo se encontraron respaldos exitosos en las últimas 24 horas.  \nAcción recomendada: Verificar los respaldos de PostgreSQL.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        -128
+      ],
+      "id": "d52b6014-6914-470e-ad56-43ae33df692f",
+      "name": "Send a text message",
+      "webhookId": "f341a2f8-57d8-4576-a3fb-7d48ced1b57e",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3dadf75c-8b1e-4138-b030-3794cbbf1927",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    MAX(fecha) FILTER (\n        WHERE LOWER(estado) IN ('exitoso', 'completado', 'success')\n    ) AS ultimo_backup,\n    CASE\n        WHEN MAX(fecha) FILTER (\n            WHERE LOWER(estado) IN ('exitoso', 'completado', 'success')\n        ) IS NULL THEN true\n        WHEN MAX(fecha) FILTER (\n            WHERE LOWER(estado) IN ('exitoso', 'completado', 'success')\n        ) < NOW() - INTERVAL '24 hours' THEN true\n        ELSE false\n    END AS alerta_d3\nFROM backups;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b76aab96-248c-41b6-aea7-ecf27250936e",
+      "name": "D3-Backup obsoleto — sin respaldo reciente",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\n\nconst resultados = [];\n\nfor (const item of $input.all()) {\n  const dato = item.json;\n\n  if (dato.alerta_d3 !== true) {\n    continue;\n  }\n\n  const ultimoBackup = dato.ultimo_backup ?? 'SIN_BACKUP';\n\n  const identificador = String(ultimoBackup);\n\n  if (memoria.ultimoAvisoD3 === identificador) {\n    continue;\n  }\n\n  memoria.ultimoAvisoD3 = identificador;\n  resultados.push(item);\n}\n\nreturn resultados;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        -128
+      ],
+      "id": "51b1945b-4776-4322-a349-ffc163e7c95f",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "D3-Backup obsoleto — sin respaldo reciente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D3-Backup obsoleto — sin respaldo reciente": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c813db5a-2876-468a-8f2e-e3b517fe5855",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "DrjDhtg7s1s8wLAR",
+  "tags": []
+}

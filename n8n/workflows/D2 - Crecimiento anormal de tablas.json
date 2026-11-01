@@ -1,0 +1,175 @@
+{
+  "name": "D2 - Crecimiento anormal de tablas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "500d0980-ab4a-48ef-b3fb-da70063abb50",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    schemaname AS esquema,\n    relname AS tabla,\n    n_live_tup::bigint AS registros_estimados\nFROM pg_stat_user_tables\nWHERE schemaname = 'public'\n  AND relname IN (\n      'clientes',\n      'ventas',\n      'productos',\n      'lotes_produccion',\n      'materias_primas',\n      'control_calidad',\n      'gastos'\n  )\nORDER BY relname;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "35b97e3e-0f72-4c4d-9891-11a642f4503e",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $getWorkflowStaticData('global');\nconst ahora = Date.now();\n\nif (!data.d2) {\n  data.d2 = {};\n}\n\nconst resultados = [];\n\nfor (const item of $input.all()) {\n  const tabla = item.json.tabla;\n  const esquema = item.json.esquema;\n  const actual = Number(item.json.registros_estimados);\n  const clave = `${esquema}.${tabla}`;\n\n  const anterior = data.d2[clave];\n\n  let crecimiento = 0;\n  let alerta = false;\n\n  if (anterior && anterior.registros > 0) {\n    const minutos =\n      (ahora - anterior.fecha) / 60000;\n\n    if (minutos >= 25 && minutos <= 35) {\n      crecimiento =\n        ((actual - anterior.registros) /\n          anterior.registros) * 100;\n\n      alerta = crecimiento > 20;\n    }\n  }\n\n  resultados.push({\n    json: {\n      tabla: clave,\n      registros_anteriores: anterior?.registros ?? null,\n      registros_actuales: actual,\n      crecimiento_porcentaje:\n        Number(crecimiento.toFixed(2)),\n      alerta_d2: alerta\n    }\n  });\n\n  data.d2[clave] = {\n    registros: actual,\n    fecha: ahora\n  };\n}\n\nreturn resultados;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "82fe547b-5339-401a-b6da-a3373e1be4bf",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "0b13997b-898d-4ab1-b087-82bf8c4412d7",
+              "leftValue": "={{ $json.alerta_d2 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        608,
+        16
+      ],
+      "id": "075ba1ff-fa67-4e3b-b9fa-3d4e05bb2420",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=⚠️ ALERTA D2 - NutriAnimales S.A.  \n\nTipo: Crecimiento anormal de tabla \n\nSeveridad: ADVERTENCIA  \nTabla: {{ $json.tabla }} \nRegistros anteriores (estimados): {{ $json.registros_anteriores }} \nRegistros actuales (estimados): {{ $json.registros_actuales }} \nCrecimiento: {{ $json.crecimiento_porcentaje }}% \nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nUmbral: Más del 20% en 30 minutos. \nAcción: Revisar inserciones masivas y actividad reciente en la tabla.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        -80
+      ],
+      "id": "361464ab-4554-48d9-8ea1-9b95265877d7",
+      "name": "Send a text message",
+      "webhookId": "6452b56b-34a3-47be-8f72-500ac4f456d6",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "725fc5c2-2171-49cf-a579-78d35a0920dd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "mUstzWKqwBlmpzTM",
+  "tags": []
+}

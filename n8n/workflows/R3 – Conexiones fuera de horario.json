@@ -1,0 +1,176 @@
+{
+  "name": "R3 – Conexiones fuera de horario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6d94dc23-dfc7-4043-ba31-1663dd303e6b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "\nSELECT\n    pid,\n    usename,\n    client_addr::text AS ip_origen,\n    backend_start,\n    state,\n    TRUE AS fuera_horario\nFROM pg_stat_activity\nWHERE datname = current_database()\n  AND backend_type = 'client backend'\n  AND usename <> 'agente_ia'\n  AND (\n    (backend_start AT TIME ZONE 'America/Costa_Rica')::time >= TIME '23:00'\n    OR\n    (backend_start AT TIME ZONE 'America/Costa_Rica')::time < TIME '06:00'\n  );\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "bd471862-390a-454b-9d9c-c2f3db701f6b",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "a03e8273-3a44-45c0-9972-24605fe0ea82",
+              "leftValue": "={{ $json.alerta_r3 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "40438acf-785d-40e7-9a69-c628eacbffd5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=🚨 ALERTA CRÍTICA R3 – NutriAnimales S.A.\n\nTipo de incidente: Conexión a PostgreSQL fuera del horario permitido.\nSeveridad: CRÍTICA\nRegla activada: R3 – Accesos fuera de horario\n\nConexiones nuevas detectadas: {{ $json.conexiones_nuevas }}\n\nDetalle de las conexiones:\n{{ $json.detalle_conexiones }}\n\nFecha y hora de detección: {{ $now.setZone('America/Costa_Rica').toFormat('yyyy-MM-dd HH:mm:ss') }}\nHorario restringido: 23:00 a 06:00 (hora de Costa Rica).\n\nAcción recomendada: Verificar si las conexiones detectadas fueron autorizadas, identificar los usuarios y direcciones IP involucradas y revisar los registros de acceso de PostgreSQL para descartar actividad no autorizada.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "61e3d467-cf42-4fd2-b6d2-a6aad506257a",
+      "name": "Send a text message",
+      "webhookId": "81ddffbf-5c02-4fb2-9145-e6fccf325722",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\n\nconst sesiones = $input.all().map(item => item.json)\n  .filter(s => s.pid != null && s.backend_start != null);\n\nconst notificadas = new Set(memoria.conexionesR3 || []);\nconst actuales = new Set();\n\nconst nuevas = [];\n\nfor (const sesion of sesiones) {\n  const id = `${sesion.pid}|${sesion.backend_start}`;\n  actuales.add(id);\n\n  if (!notificadas.has(id)) {\n    nuevas.push(sesion);\n  }\n}\n\n// Recordar las conexiones actuales, para no repetir alertas.\nmemoria.conexionesR3 = [...actuales];\n\nreturn [{\n  json: {\n    alerta_r3: nuevas.length > 0,\n    conexiones_nuevas: nuevas.length,\n    detalle_conexiones: nuevas.map(s =>\n      `Usuario: ${s.usename}\\nIP: ${s.ip_origen ?? 'Local'}\\nInicio: ${s.backend_start}\\nPID: ${s.pid}`\n    ).join('\\n\\n')\n  }\n}];\n;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "bc81a639-a99c-4531-937a-56b7601503ab",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6c6ff7da-92be-4554-9164-3c3fb1fefec0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "RPKUQiV2sDEEN2bu",
+  "tags": []
+}
