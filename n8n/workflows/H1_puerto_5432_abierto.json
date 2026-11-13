@@ -1,0 +1,218 @@
+{
+  "updatedAt": "2026-11-12T22:27:57.038Z",
+  "createdAt": "2026-11-12T22:23:14.309Z",
+  "id": "hxNFTTCok2ujyzy4",
+  "name": "H1 - Puerto 5432",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "b031fdf2-147e-480d-b78e-9851189e13f7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_h1 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "1d8d76cc-3478-4f9a-bb63-336ed5aab894",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA H1 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Puerto 5432 de PostgreSQL abierto en el firewall\nSeveridad: Crítica\nConexiones permitidas por UFW al puerto 5432 en el último minuto: {{ $json.total_intentos }}\nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\nUmbral: 1 o más conexiones permitidas al puerto 5432\nAcción: Revisar la regla de UFW y cerrar el puerto 5432 si no está autorizado",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "00687b08-abdd-484e-bfb3-14935a5e4330",
+      "name": "Send a text message",
+      "webhookId": "cbd548f3-e91b-47c3-8343-f3cdb7528732",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// si no hay lineas, loki devuelve result vacio\nconst r = $input.first().json.data.result;\nconst total = r.length ? Number(r[0].value[1]) : 0;\nreturn [{ json: { alerta_h1: total > 0, total_intentos: total } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        96
+      ],
+      "id": "41481aa7-ab5e-4537-89db-bf14074f68f6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "http://loki:3100/loki/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "sum(count_over_time({job=\"ufw\"} |= \"UFW ALLOW\" |= \"DPT=5432\" [1m]))"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        192,
+        96
+      ],
+      "id": "776808af-14f5-4310-bd21-28d8e103ba32",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "b3932f89-53e4-491f-937b-13c1d5a81db5",
+  "activeVersionId": "b3932f89-53e4-491f-937b-13c1d5a81db5",
+  "versionCounter": 14,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-12T22:23:14.314Z",
+      "createdAt": "2026-11-12T22:23:14.314Z",
+      "role": "workflow:owner",
+      "workflowId": "hxNFTTCok2ujyzy4",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "h1",
+    "description": ""
+  }
+}
