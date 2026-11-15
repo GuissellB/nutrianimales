@@ -1,0 +1,156 @@
+{
+  "name": "R2 – Saturación de conexiones",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "25b5def5-225a-4029-958a-6fac6c2f1272",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS conexiones_activas,\n       COALESCE(STRING_AGG(DISTINCT usename || '@' || COALESCE(client_addr::text,'local'), ', '), 'Ninguna') AS detalle_conexiones\nFROM pg_stat_activity\nWHERE datname = current_database()\n  AND backend_type = 'client backend';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b149af04-665d-44dc-8383-8134ee6e7e33",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// R2: umbral > 10 conexiones activas. Avisa una vez y se rearma al bajar del umbral.\nconst memoria = $getWorkflowStaticData('global');\nconst actual = $input.first().json;\nconst umbral = 10;\nconst sobre = Number(actual.conexiones_activas) > umbral;\nconst alerta = sobre && !memoria.r2Activa;\nmemoria.r2Activa = sobre;\nreturn [{ json: { alerta_r2: alerta, conexiones_activas: actual.conexiones_activas, umbral, detalle_conexiones: actual.detalle_conexiones } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "2d6974fc-6bff-40d5-9fbd-837bc11a491e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "43103a5f-89e7-44a3-bc39-6066f03b1ebc",
+              "leftValue": "={{ $json.alerta_r2 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "7be3a9e3-5486-429c-98a7-a771da7584bf",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "CONFIGURAR_CHAT_ID",
+        "text": "=ALERTA ADVERTENCIA R2 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Saturación de conexiones activas en PostgreSQL\nSeveridad: Advertencia\nConexiones activas: {{ $json.conexiones_activas }} (umbral: > {{ $json.umbral }})\nDetalle: {{ $json.detalle_conexiones }}\nFecha: {{ $now.setZone('America/Costa_Rica').toFormat('yyyy-MM-dd HH:mm:ss') }}\nAcción: Revisar pg_stat_activity, identificar sesiones inactivas o abusivas y cerrar las que no correspondan.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "aa4076a0-88bd-45c1-98b7-3c84f87cab1c",
+      "name": "Send a text message",
+      "webhookId": "2d57e946-7f8f-4161-ac2c-304dc0de2dcb"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

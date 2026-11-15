@@ -1,0 +1,155 @@
+{
+  "name": "P5 R4 – Fuerza bruta SSH (laboratorio)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dc7e461d-5793-4f9e-80fc-118f9e857043",
+      "name": "Cada minuto"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://persona5-eventos:8765/resumen?tipo=ssh&ventana=600",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        245,
+        0
+      ],
+      "id": "f1b24cb7-2d87-443d-8007-5eabcdbc0ad4",
+      "name": "API eventos SSH"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dato = $input.first().json;\nconst memoria = $getWorkflowStaticData('global');\nconst total = Number(dato.total || 0);\nconst supera = total > 5;\nconst alerta = supera && !memoria.r4Activa;\nmemoria.r4Activa = supera;\nreturn [{json:{alerta,total,ultimo_evento_utc:dato.ultimo_evento_utc,fuente:dato.fuente}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        0
+      ],
+      "id": "7e9cdc44-e76e-4ad5-893b-4a1e16bd552e",
+      "name": "Evaluar R4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6701093b-1d31-4129-8151-cef2303fa80f",
+              "leftValue": "={{ $json.alerta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        695,
+        0
+      ],
+      "id": "6251eaca-f4af-46e1-8f18-996d0e50d274",
+      "name": "¿R4 disparada?"
+    },
+    {
+      "parameters": {
+        "chatId": "CONFIGURAR_CHAT_ID",
+        "text": "=🚨 ALERTA CRÍTICA R4 - NutriAnimales S.A. | BCD 9220\n\n20 fallos SSH de laboratorio.\nIntentos últimos 10 min: {{ $json.total }} (umbral: > 5)\nFuente: {{ $json.fuente }}\nÚltimo evento: {{ $json.ultimo_evento_utc }}\nFecha de detección: {{ $now.setZone(\"America/Costa_Rica\").toFormat(\"yyyy-MM-dd HH:mm:ss\") }}\nAcción: revisar evidencia, notificar al equipo y ejecutar respuesta documentada.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        -100
+      ],
+      "id": "f51814a2-3ff9-49e7-9a51-600153ac4fda",
+      "name": "Notificar R4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "API eventos SSH",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API eventos SSH": {
+      "main": [
+        [
+          {
+            "node": "Evaluar R4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar R4": {
+      "main": [
+        [
+          {
+            "node": "¿R4 disparada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿R4 disparada?": {
+      "main": [
+        [
+          {
+            "node": "Notificar R4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

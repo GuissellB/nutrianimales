@@ -1,0 +1,155 @@
+{
+  "name": "P5 H1 – Cambio UFW (laboratorio/emulación)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a063b9e3-da49-4259-be97-49714ae77142",
+      "name": "Cada minuto"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://persona5-eventos:8765/resumen?tipo=ufw&ventana=300",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        245,
+        0
+      ],
+      "id": "503a548b-a173-4e82-a865-af01eb770730",
+      "name": "API eventos UFW"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst mem = $getWorkflowStaticData('global');\nconst ultima = d.ultimo_evento_utc || null;\nconst alerta = Number(d.total || 0) > 0 && !!ultima && ultima !== mem.ultimaH1;\nif (alerta) mem.ultimaH1 = ultima;\nreturn [{json:{alerta,total:Number(d.total||0),ultimo_evento_utc:ultima,fuente:d.fuente}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        0
+      ],
+      "id": "dd3a945e-b47d-416b-b351-a8469cbd8809",
+      "name": "Evaluar H1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ce5eb23d-7e8e-4640-ba96-42159649b077",
+              "leftValue": "={{ $json.alerta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        695,
+        0
+      ],
+      "id": "3abd6076-e7f8-4887-a6fc-4a2612cd8c82",
+      "name": "¿H1 disparada?"
+    },
+    {
+      "parameters": {
+        "chatId": "CONFIGURAR_CHAT_ID",
+        "text": "=🚨 ALERTA CRÍTICA H1 - NutriAnimales S.A. | BCD 9220\n\nCambio UFW de laboratorio detectado (5432/tcp).\nFuente: {{ $json.fuente }}\nEventos últimos 5 min: {{ $json.total }}\nÚltimo cambio: {{ $json.ultimo_evento_utc }}\nFecha de detección: {{ $now.setZone(\"America/Costa_Rica\").toFormat(\"yyyy-MM-dd HH:mm:ss\") }}\nAcción: revisar evidencia, notificar al equipo y ejecutar respuesta documentada.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        -100
+      ],
+      "id": "60f0f8ab-877f-4e2e-b89c-41d154e7ef33",
+      "name": "Notificar H1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "API eventos UFW",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API eventos UFW": {
+      "main": [
+        [
+          {
+            "node": "Evaluar H1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar H1": {
+      "main": [
+        [
+          {
+            "node": "¿H1 disparada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿H1 disparada?": {
+      "main": [
+        [
+          {
+            "node": "Notificar H1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -1,0 +1,31 @@
+filebeat.inputs:
+  # UFW (H1). En Linux es el log real; en Windows/Docker Desktop ver docker-compose.observability.windows.yml
+  - type: filestream
+    id: ufw
+    paths:
+      - /var/log/ufw.log
+    fields:
+      job: ufw
+
+  # Logs de PostgreSQL (R4). Se leen del log del contenedor Docker y solo se conservan
+  # las lineas de autenticacion fallida, para no enviar a Loki logs de otros servicios.
+  - type: filestream
+    id: postgres-auth
+    paths:
+      - /var/lib/docker/containers/*/*-json.log
+    parsers:
+      - container:
+          stream: all
+          format: docker
+    processors:
+      - drop_event:
+          when:
+            not:
+              contains:
+                message: "password authentication failed"
+    fields:
+      job: postgres
+
+# filebeat no habla directo con loki, se envia a logstash
+output.logstash:
+  hosts: ["logstash:5044"]

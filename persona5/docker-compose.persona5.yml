@@ -1,0 +1,38 @@
+# Overlay optativo: ejecutar junto a docker-compose.yml del repositorio principal.
+# Los caminos se resuelven desde la raíz del repositorio (primer -f).
+# No publica puertos y no modifica los servicios de Nginx, PostgreSQL ni n8n.
+services:
+  persona5-ssh:
+    build:
+      context: ./persona5/lab/ssh
+    container_name: nutrianimales-persona5-ssh
+    restart: unless-stopped
+    volumes:
+      - ./persona5/observability/logs:/var/log/persona5
+    networks:
+      - nutrianimales-net
+    security_opt:
+      - no-new-privileges:true
+
+  persona5-eventos:
+    image: python:3.12-alpine
+    container_name: nutrianimales-persona5-eventos
+    user: "65534:65534"
+    command: ["python", "-u", "/app/servidor_eventos.py"]
+    restart: unless-stopped
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./persona5/lab/eventos/servidor_eventos.py:/app/servidor_eventos.py:ro
+      - ./persona5/observability/logs:/data/logs:ro
+    networks:
+      - nutrianimales-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  nutrianimales-net:
+    name: nutrianimales-net
