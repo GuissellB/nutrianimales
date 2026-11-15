@@ -3,6 +3,17 @@ filebeat.inputs:
     id: ufw
     paths:
       - /var/log/ufw.log
+    fields:
+      job: ufw
+    fields_under_root: true
+
+  - type: filestream
+    id: postgres-auth
+    paths:
+      - /var/log/postgres_auth.log
+    fields:
+      job: postgres_auth
+    fields_under_root: true
 
 # filebeat no habla directo con loki, se envia a logstash
 output.logstash:

@@ -24,6 +24,9 @@ services:
     volumes:
       - ./observability/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/log/ufw.log:/var/log/ufw.log:ro
+      # fallos de login de postgres, escritos por el comando del README
+      - $HOME/pg_auth.log:/var/log/postgres_auth.log:ro
+      - filebeat-data:/usr/share/filebeat/data
     depends_on: [logstash]
     networks: [nutrianimales-net]
     restart: unless-stopped
@@ -31,3 +34,6 @@ services:
 networks:
   nutrianimales-net:
     external: true
+
+volumes:
+  filebeat-data:
