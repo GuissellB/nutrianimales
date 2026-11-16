@@ -13,7 +13,7 @@ if (Test-Path .env) {
   else { & ls -l .env }
 } else { Write-Warning '.env no se encuentra en esta máquina; no se verificaron permisos.' }
 Write-Paso '[4] Patrones de tokens de Groq/Telegram y llaves privadas en archivos Git'
-& git grep -nIE 'gsk_[A-Za-z0-9]{10,}|[0-9]{8,10}:AA[A-Za-z0-9_-]{30,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' -- . ":!persona5/ataques/verificar-secretos.ps1"
+& git grep -nIE 'gsk_[A-Za-z0-9]{10,}|[0-9]{8,10}:AA[A-Za-z0-9_-]{30,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' -- . ":!escenarios_ataque/ataques/verificar-secretos.ps1"
 Write-Paso '[5] Revisar historial por posibles filtraciones (NO compartir el parche de Git)'
 & git log --all --format='%h %s' -G'gsk_[A-Za-z0-9]{10,}|[0-9]{8,10}:AA[A-Za-z0-9_-]{30,}' -- .
 Write-Host 'Si hubo filtración, revocar el secreto aunque se haya eliminado de Git.'

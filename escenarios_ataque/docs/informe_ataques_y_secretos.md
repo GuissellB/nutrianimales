@@ -8,7 +8,7 @@
 
 ### 8.1 Metodología
 
-Se implementaron cinco escenarios en un laboratorio Docker aislado, utilizando PostgreSQL 16, n8n y alertas de Telegram. Para A1 se instaló un OpenSSH de pruebas que escucha solo dentro de su contenedor. Para A3 se ofrece un modo de emulación cuando se utiliza Docker Desktop, y una alternativa de UFW real únicamente en una VM Linux autorizada. La detección se implementó mediante sondeos programados cada 60 segundos. Se registran hora del inicio, hora de la detección, tiempo transcurrido y acción de respuesta.
+Se implementaron cinco escenarios en un laboratorio Docker aislado, utilizando PostgreSQL 16, n8n y alertas de Telegram. Para A1 se instaló un OpenSSH de pruebas que escucha solo dentro de su contenedor. Para A3 se ofrece un modo de emulación cuando se utiliza Docker Desktop, y una alternativa de UFW real únicamente en una VM Linux autorizada. Las pruebas documentadas utilizan los flujos H3, D7 y R4-SSH del laboratorio personal de n8n, mediante sondeos aproximados cada 60 segundos. H1-P5 permanece como adaptador para A3. Estas pruebas no implican modificaciones ni nuevas validaciones de los workflows oficiales del equipo. Se registran hora del inicio, hora de la detección, tiempo transcurrido y acción de respuesta.
 
 **Advertencia metodológica:** La alerta R4 se describe como fallos de PostgreSQL en la sección de alertas del PDF (p. 5), pero A1 pide SSH (p. 11). Este laboratorio verifica el ataque SSH y lo identifica explícitamente como R4-SSH. H1 detecta eventos del ejecutor A3, no cualquier cambio independiente del firewall. D7 detecta lectura masiva, no salida efectiva de información.
 
@@ -27,8 +27,8 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 ### 8.3 A1 — Fuerza bruta SSH
 
 - **Objetivo:** provocar 20 fallos de autenticación reales contra un `sshd` aislado, superar 5 fallos en 10 minutos.
-- **Ejecución:** `pwsh -File persona5/ataques/A1_fuerza_bruta.ps1 -ConfirmarLaboratorio` (o Bash A1).
-- **Fuente:** `persona5/observability/logs/ssh.log` con líneas `Failed password`.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A1_fuerza_bruta.ps1 -ConfirmarLaboratorio` (o Bash A1).
+- **Fuente:** `escenarios_ataque/observability/logs/ssh.log` con líneas `Failed password`.
 - **Alerta:** R4-SSH en n8n y Telegram. Hora del aviso: [ ].
 - **Resultado:** [ ]. **Acción:** revisar IP/usuario; aislamiento del laboratorio / control de acceso: [ ].
 - **Capturas:** `evidencias/A1/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
@@ -46,15 +46,15 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 
 - **Objetivo:** verificar la alerta H1 cuando se permite el puerto de PostgreSQL en una política UFW.
 - **Modo empleado:** [emulación Docker Desktop / UFW real en VM Linux].
-- **Ejecución:** `pwsh -File persona5/ataques/A3_apertura_puerto.ps1 -ConfirmarLaboratorio` (añadir `-RealLinux` solo si aplica).
-- **Fuente:** `persona5/observability/logs/ufw.log` (evento de cambio de prueba).
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A3_apertura_puerto.ps1 -ConfirmarLaboratorio` (añadir `-RealLinux` solo si aplica).
+- **Fuente:** `escenarios_ataque/observability/logs/ufw.log` (evento de cambio de prueba).
 - **Resultado:** [ ]. **Respuesta:** [revertir regla real / cerrar emulación, no se abrió el puerto].
 - **Capturas:** `evidencias/A3/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
 
 ### 8.6 A4 — Escalada de privilegios
 
 - **Objetivo:** simular un GRANT administrativo de INSERT a `agente_ia`, que debe ser de solo lectura.
-- **Ejecución:** `pwsh -File persona5/ataques/A4_escalada_privilegios.ps1 -ConfirmarLaboratorio`.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A4_escalada_privilegios.ps1 -ConfirmarLaboratorio`.
 - **Fuente:** `pg_class` + `has_table_privilege`, o `information_schema.role_table_grants`.
 - **Resultado:** H3 [ ]. **Respuesta:** `REVOKE INSERT ON ALL TABLES IN SCHEMA public FROM agente_ia;`; verificación final: [ ].
 - **Capturas:** `evidencias/A4/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
@@ -62,7 +62,7 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 ### 8.7 A5 — Lectura masiva de datos
 
 - **Objetivo:** detectar más de 1000 filas seleccionadas en tablas sensibles por `agente_ia`.
-- **Ejecución:** `pwsh -File persona5/ataques/A5_exfiltracion.ps1 -ConfirmarLaboratorio` después del baseline.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A5_exfiltracion.ps1 -ConfirmarLaboratorio` después del baseline.
 - **Fuente:** `public.pg_stat_statements` con `rolname='agente_ia'`, `rows` y `calls`.
 - **Resultado:** D7 [ ]. **Respuesta:** investigar legitimidad y revisar credenciales si corresponde: [ ].
 - **Limitación:** los resultados SQL se descartan en `/dev/null`; es una emulación de lectura masiva, no una exfiltración fuera del entorno.
@@ -74,7 +74,7 @@ La tabla `auditoria_datos` fue diseñada con triggers para INSERT/UPDATE/DELETE 
 
 ### 8.9 Conclusión y mejoras
 
-Los cinco escenarios permiten evaluar controles preventivos y detectivos: validación previa a N8N, alertas de eventos de autenticación, cambios de política de red, mínimos privilegios y lecturas masivas. La capacidad real del sistema solo puede afirmarse al completar las pruebas en vivo y adjuntar sus capturas. Se recomienda en un entorno productivo: correlación en un SIEM, monitoreo independiente del firewall y acceso SSH, reglas de detección persistentes, pruebas periódicas y restricción de uso de cuentas administrativas.
+Los cinco escenarios permiten evaluar controles preventivos y detectivos: validación previa a N8N, alertas de eventos de autenticación, cambios de política de red, mínimos privilegios y lecturas masivas. La capacidad real del sistema solo puede afirmarse al completar las pruebas en vivo y adjuntar sus capturas. La prueba A2 por webhook HTTP no valida recepción directa por Telegram; A3 emulada no valida UFW real. Se recomienda en un entorno productivo: correlación en un SIEM, monitoreo independiente del firewall y acceso SSH, reglas de detección persistentes, pruebas periódicas y restricción de uso de cuentas administrativas.
 
 ## 9. Gestión de secretos
 
