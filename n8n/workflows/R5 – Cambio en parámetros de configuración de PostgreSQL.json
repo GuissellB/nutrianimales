@@ -1,0 +1,175 @@
+{
+  "name": "R5 – Cambio en parámetros de configuración de PostgreSQL",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bc597b4e-5675-4edf-9c04-f330044fc6dd",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cambios AS (\n    SELECT\n        s.name AS parametro,\n        b.valor_esperado,\n        s.setting AS valor_actual\n    FROM pg_settings s\n    JOIN public.pg_settings_baseline b\n        ON s.name = b.name\n    WHERE s.setting IS DISTINCT FROM b.valor_esperado\n)\nSELECT\n    COUNT(*)::int AS total_cambios,\n    COALESCE(\n        STRING_AGG(\n            parametro || ': ' ||\n            COALESCE(valor_esperado, 'NULL') || ' -> ' ||\n            COALESCE(valor_actual, 'NULL'),\n            ' | '\n        ),\n        'Ninguno'\n    ) AS detalle_cambios,\n    COUNT(*) > 0 AS alerta_r5\nFROM cambios;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "dbc490c1-e205-4d98-812d-517a76725694",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_r5 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "c07bf4dc-b051-4353-a391-1a544e85cd05",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=🚨 ALERTA CRÍTICA R5 - NutriAnimales S.A.  \n\nTipo: Cambio en parámetros de PostgreSQL \nSeveridad: CRÍTICA  \nParámetros modificados: {{ $json.total_cambios }} \nDetalle de cambios: {{ $json.detalle_cambios }} \nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nUmbral: Cualquier diferencia respecto al baseline. \nAcción recomendada: Verificar si los cambios fueron autorizados, revisar postgresql.conf y restaurar la configuración segura si corresponde.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "b7434e00-23f5-4151-8e8a-6ec981a18dce",
+      "name": "Send a text message",
+      "webhookId": "5655252f-8024-47ee-8c96-fe167cf1849b",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\nconst actual = $input.first().json;\n\n// Estado actual de los parametros monitoreados\nconst firmaActual = actual.total_cambios > 0\n  ? actual.detalle_cambios\n  : 'SIN_CAMBIOS';\n\n// Estado que se detecto en la ejecucion anterior\nconst firmaAnterior = memoria.ultimoEstadoR5;\n\n// Solo alertamos si existe una diferencia nueva\nconst alertaNueva =\n  Number(actual.total_cambios) > 0 &&\n  firmaActual !== firmaAnterior;\n\n// Guardar el estado para la proxima ejecucion\nmemoria.ultimoEstadoR5 = firmaActual;\n\nreturn [{\n  json: {\n    ...actual,\n    alerta_r5: alertaNueva,\n    cambio_nuevo: alertaNueva\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "3358e2f5-33b0-4f4d-9230-811417373c03",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "392d27af-9c80-444a-8813-03e5deeb71bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "tkqyvV7qJzvlzeRd",
+  "tags": []
+}

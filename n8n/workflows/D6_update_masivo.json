@@ -1,0 +1,222 @@
+{
+  "updatedAt": "2026-11-12T21:37:49.362Z",
+  "createdAt": "2026-11-12T21:36:57.762Z",
+  "id": "4ZQvislNGcTRJDa8",
+  "name": "D6 – UPDATE masivo sin WHERE",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "a1be6f79-99d4-41a2-aa96-1e40f6ad71dd",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.queryid::text AS queryid, r.rolname AS usuario, s.query, s.rows::bigint AS rows\nFROM public.pg_stat_statements s\nJOIN pg_roles r ON r.oid = s.userid\nWHERE s.dbid = (SELECT oid FROM pg_database WHERE datname = current_database())\n  AND s.query ~* '^\\s*UPDATE'\n  AND s.query !~* '\\mWHERE\\M';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        96
+      ],
+      "id": "644e813c-bacd-4896-9e90-2639ceba1599",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "zytkOhUGCrB1TR4m",
+          "name": "Agente IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_d6 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        96
+      ],
+      "id": "4dd5d16b-cd95-454d-a45e-8e7e3c976d9c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA D6 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: UPDATE masivo sin WHERE detectado\nTabla: {{ $json.tabla }}\nFilas modificadas: {{ $json.filas }} (umbral: 50)\nQuery: {{ $json.query }}\nUsuario: {{ $json.usuario }}\nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\nSeveridad: CRÍTICA\nAcción: Verificar intención. Consultar auditoria_datos para ver el valor anterior.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "d0ba6f45-5d37-4ad4-a02c-3fc10231c03c",
+      "name": "Send a text message",
+      "webhookId": "2f130098-745a-4d49-8305-9595b6462b8c",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// compara filas acumuladas contra la medicion anterior\nconst memoria = $getWorkflowStaticData('global');\nconst previo = memoria.d6 || null;\nconst umbral = 50;\nconst actual = {};\nconst hallazgos = [];\n\nfor (const item of $input.all()) {\n  const f = item.json;\n  if (!f.queryid) continue; // ignora el item vacio cuando no hay filas\n  const clave = f.queryid + ':' + f.usuario;\n  const filas = Number(f.rows);\n  actual[clave] = filas;\n  if (previo === null) continue; // primera ejecucion: solo guarda la base\n  let antes = previo[clave] || 0;\n  if (filas < antes) antes = 0; // las estadisticas se reiniciaron\n  const delta = filas - antes;\n  if (delta > umbral) {\n    const tabla = (f.query.match(/UPDATE\\s+(?:ONLY\\s+)?([\\w.\"]+)/i) || [])[1] || 'desconocida';\n    hallazgos.push({ tabla, filas: delta, usuario: f.usuario, query: f.query });\n  }\n}\n\nmemoria.d6 = actual;\nconst h = hallazgos[0] || {};\nreturn [{ json: {\n  alerta_d6: hallazgos.length > 0,\n  total: hallazgos.length,\n  tabla: h.tabla || '',\n  filas: h.filas || 0,\n  usuario: h.usuario || '',\n  query: h.query || ''\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "f7b30731-cc04-4bb0-8f8c-0d2a6bc5f455",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "d6": {
+        "5606571543210334217:postgres": 200
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "91fbadd7-7f3c-490f-8ca7-7c060ebb669c",
+  "activeVersionId": "91fbadd7-7f3c-490f-8ca7-7c060ebb669c",
+  "versionCounter": 5,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-12T21:36:57.765Z",
+      "createdAt": "2026-11-12T21:36:57.765Z",
+      "role": "workflow:owner",
+      "workflowId": "4ZQvislNGcTRJDa8",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "d6",
+    "description": ""
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "updatedAt": "2026-11-12T20:45:56.174Z",
+  "createdAt": "2026-11-12T20:43:33.852Z",
+  "id": "bYrrQr7SN3HgWFwP",
+  "name": "H5 – SSL desactivado o autenticación débil",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "8d96e201-82ce-489a-96d4-ca1e72e0c475",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH cambios AS (\n    SELECT b.name AS parametro, b.valor_esperado, s.setting AS valor_actual\n    FROM public.pg_settings_baseline b\n    JOIN pg_catalog.pg_settings s ON s.name = b.name\n    WHERE b.name IN ('ssl', 'password_encryption')\n      AND s.setting IS DISTINCT FROM b.valor_esperado\n)\nSELECT COUNT(*)::int AS total_cambios,\n       COALESCE(STRING_AGG(parametro || ': ' || valor_esperado || ' -> ' || valor_actual, ' | '), 'Ninguno') AS detalle_cambios,\n       COUNT(*) > 0 AS alerta_h5\nFROM cambios;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        96
+      ],
+      "id": "edf27614-6b73-485a-b958-838843918ab5",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "zytkOhUGCrB1TR4m",
+          "name": "Agente IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_h5 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        96
+      ],
+      "id": "90b40035-36a9-4503-a1f8-aeb7bbba170d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA H5 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: SSL desactivado o autenticación debilitada\nSeveridad: CRÍTICA\n\nParámetros afectados: {{ $json.total_cambios }}\nDetalle: {{ $json.detalle_cambios }}\nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nUmbral: ssl distinto de on, o password_encryption distinto de scram-sha-256.\nAcción recomendada: Verificar quién modificó la configuración, revisar el baseline y restaurar la configuración segura.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "eee21c0b-74ac-4816-b6a1-d16ba53b25c5",
+      "name": "Send a text message",
+      "webhookId": "7cf4d6a2-8f5b-4556-a3d4-438fffaa64dd",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// evita repetir la misma alerta mientras la condicion siga igual\nconst memoria = $getWorkflowStaticData('global');\nconst actual = $input.first().json;\nconst firma = actual.alerta_h5 ? actual.detalle_cambios : 'SIN_CAMBIOS';\nconst nueva = actual.alerta_h5 && firma !== memoria.ultimoH5;\nmemoria.ultimoH5 = firma;\nreturn [{ json: { ...actual, alerta_h5: nueva } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "e1966047-9689-41c4-9176-2727130f9893",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "ultimoH5": "SIN_CAMBIOS"
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "d7a40535-4fe6-4727-b21f-07305286e99e",
+  "activeVersionId": "d7a40535-4fe6-4727-b21f-07305286e99e",
+  "versionCounter": 5,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-12T20:43:33.855Z",
+      "createdAt": "2026-11-12T20:43:33.855Z",
+      "role": "workflow:owner",
+      "workflowId": "bYrrQr7SN3HgWFwP",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "H5 inicial",
+    "description": ""
+  }
+}

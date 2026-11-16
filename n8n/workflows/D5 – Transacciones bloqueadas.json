@@ -1,0 +1,175 @@
+{
+  "name": "D5 – Transacciones bloqueadas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d34a5d06-f355-4d8d-969f-6d1fc711d546",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bloqueos AS (\n    SELECT\n        a.pid,\n        a.usename,\n        a.query,\n        l.locktype,\n        l.mode,\n        EXTRACT(\n            EPOCH FROM (NOW() - a.query_start)\n        ) AS segundos\n    FROM pg_locks l\n    JOIN pg_stat_activity a\n        ON l.pid = a.pid\n    WHERE l.granted = false\n      AND a.state = 'active'\n      AND NOW() - a.query_start > INTERVAL '30 seconds'\n)\nSELECT\n    COUNT(DISTINCT pid)::int AS total_bloqueos,\n    COALESCE(MAX(segundos), 0)::numeric(10,2)\n        AS segundos_maximos,\n    COALESCE(\n        STRING_AGG(DISTINCT pid::text, ', '),\n        'Ninguno'\n    ) AS procesos,\n    COUNT(DISTINCT pid) > 0 AS alerta_d5\nFROM bloqueos;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f9461042-35b2-4483-bb20-eb2ac6bdfdcb",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "be4f08b8-f86d-4cf6-86ec-b1a037016250",
+              "leftValue": "={{ $json.alerta_d5 }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "2fd16b59-07bb-4e77-9599-5b9d25531c13",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=⚠️ ALERTA D5 - NutriAnimales S.A.  \nTipo: Transacciones bloqueadas \nSeveridad: ADVERTENCIA  \nSesiones detectadas: {{ $json.total_bloqueos }} \nTiempo máximo observado: {{ $json.segundos_maximos }} segundos \nProcesos afectados: {{ $json.procesos }} \nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nUmbral: Más de 30 segundos. \nAcción: Revisar las sesiones y bloqueos activos en PostgreSQL.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        -128
+      ],
+      "id": "eac063ae-b8fe-49b8-8be2-dda9bb62275a",
+      "name": "Send a text message",
+      "webhookId": "618698d0-9866-493d-ae72-ef924ef32fdd",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memoria = $getWorkflowStaticData('global');\n\nif (!memoria.alertasD5) {\n  memoria.alertasD5 = {};\n}\n\nconst nuevasAlertas = [];\n\nfor (const item of $input.all()) {\n  const dato = item.json;\n\n  const bloqueos = Number(dato.total_bloqueos ?? 0);\n  const segundos = Number(dato.segundos_maximos ?? 0);\n  const procesos = String(dato.procesos ?? '');\n\n  if (bloqueos === 0 || segundos <= 30) {\n    continue;\n  }\n\n  // Identificador del proceso bloqueado\n  const identificador = procesos;\n\n  if (memoria.alertasD5[identificador]) {\n    continue;\n  }\n\n  memoria.alertasD5[identificador] = true;\n  nuevasAlertas.push(item);\n}\n\nreturn nuevasAlertas;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -80
+      ],
+      "id": "136f0a0f-4b48-412f-816b-2c4ca0c0c7f4",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "27f9514e-c7cf-47eb-bbda-dc8cec08b57a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "K3cmNHmk7MipDK99",
+  "tags": []
+}

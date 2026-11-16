@@ -1,0 +1,4 @@
+services:
+  n8n:
+    volumes:
+      - ./postgres/pg_hba.conf:/home/node/.n8n-files/pg_hba.conf:ro

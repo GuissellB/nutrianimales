@@ -1,0 +1,224 @@
+{
+  "updatedAt": "2026-11-12T21:22:40.583Z",
+  "createdAt": "2026-11-12T21:20:32.532Z",
+  "id": "vdICXTticGJjcBmW",
+  "name": "D7 – Exfiltración masiva de datos",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "4f241c6b-401f-46ff-99f1-8cf73b373ce5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.queryid::text AS queryid, r.rolname AS usuario, s.query, s.rows::bigint AS rows\nFROM public.pg_stat_statements s\nJOIN pg_roles r ON r.oid = s.userid\nWHERE s.dbid = (SELECT oid FROM pg_database WHERE datname = current_database())\n  AND s.query ~* '^\\s*SELECT'\n  AND s.query ~* '\\m(clientes|ventas)\\M'\n  AND s.query !~* 'pg_stat_statements';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        96
+      ],
+      "id": "3c8e86cf-b598-440c-8ca9-d7e125141b1f",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "zytkOhUGCrB1TR4m",
+          "name": "Agente IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_d7 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        96
+      ],
+      "id": "e253e357-d307-4712-b0ea-53215ba35681",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA D7 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Posible exfiltración de datos detectada\nFilas leídas en tablas sensibles: {{ $json.filas_total }} (umbral: 1000)\nConsultas: {{ $json.consultas }}\nUsuario: {{ $json.usuarios }}\nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\nSeveridad: CRÍTICA\nAcción: Verificar si es consulta legítima. Revisar logs de acceso de n8n.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "7918ac62-9022-4628-8c4b-b0c0883e12e4",
+      "name": "Send a text message",
+      "webhookId": "92552db0-f9b2-4bbc-9708-e92b3b55773f",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// suma las filas leidas en tablas sensibles desde la medicion anterior\nconst memoria = $getWorkflowStaticData('global');\nconst previo = memoria.d7 || null;\nconst umbral = 1000;\nconst actual = {};\nlet total = 0;\nconst detalle = [];\nconst usuarios = new Set();\n\nfor (const item of $input.all()) {\n  const f = item.json;\n  if (!f.queryid) continue; // ignora el item vacio cuando no hay filas\n  const clave = f.queryid + ':' + f.usuario;\n  const filas = Number(f.rows);\n  actual[clave] = filas;\n  if (previo === null) continue; // primera ejecucion: solo guarda la base\n  let antes = previo[clave] || 0;\n  if (filas < antes) antes = 0; // las estadisticas se reiniciaron\n  const delta = filas - antes;\n  if (delta > 0) {\n    total += delta;\n    usuarios.add(f.usuario);\n    detalle.push(f.query + ' (' + delta + ' filas)');\n  }\n}\n\nmemoria.d7 = actual;\nreturn [{ json: {\n  alerta_d7: total > umbral,\n  filas_total: total,\n  usuarios: Array.from(usuarios).join(', '),\n  consultas: detalle.join(' | ')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "2e48f48d-6cd7-45c7-a22b-1d2ac6df658a",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "d7": {
+        "4725300614581900255:postgres": 1,
+        "7715591912726256726:agente_ia": 1000,
+        "3620285408699647571:agente_ia": 200
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "60a36185-ee90-4062-aff8-597987e0f4b5",
+  "activeVersionId": "60a36185-ee90-4062-aff8-597987e0f4b5",
+  "versionCounter": 6,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-12T21:20:32.535Z",
+      "createdAt": "2026-11-12T21:20:32.535Z",
+      "role": "workflow:owner",
+      "workflowId": "vdICXTticGJjcBmW",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "d7",
+    "description": ""
+  }
+}

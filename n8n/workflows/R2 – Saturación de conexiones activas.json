@@ -1,0 +1,151 @@
+{
+  "name": "R2 – Saturación de conexiones activas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5ead0a94-5b41-4ad2-9a08-b4e71473608b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    COUNT(*)::int AS conexiones_activas,\n    10 AS umbral,\n    COUNT(*) > 10 AS alerta_r2\nFROM pg_stat_activity\nWHERE datname = current_database()\n  AND backend_type = 'client backend'\n  AND state = 'active';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "564ff64d-e6d9-4939-bf36-96f3775ddf7d",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "WCa5vz6PXvmbRaN5",
+          "name": "Agente_IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "4df8984c-31ae-4e7e-bdeb-7c778cf2a9d5",
+              "leftValue": "={{ $json.alerta_r2 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "2544b47c-20ae-4aa6-bfdd-82ca7432d928",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=⚠️ ALERTA R2 - NutriAnimales S.A.  \nTipo: Saturación de conexiones activas \nSeveridad: ADVERTENCIA  \nConexiones activas detectadas: {{ $json.conexiones_activas }} \nUmbral permitido: {{ $json.umbral }} conexiones \nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}  \nAcción recomendada: Revisar pg_stat_activity para identificar conexiones simultáneas excesivas y posibles problemas de rendimiento.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "88b427f9-1dd4-4184-93e3-173bc494d0e1",
+      "name": "Send a text message",
+      "webhookId": "a3a536e6-80c8-46c7-8046-f6e5783ed656",
+      "credentials": {
+        "telegramApi": {
+          "id": "h2RF9SpYRZvksmFi",
+          "name": "NutriAnimales - Telegram"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0a6ff723-843a-4a1c-8d26-713c535a97b7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "227fba05a39000d7e9c898201eda8c879cb468641f5365110f249063b3d6d33b"
+  },
+  "nodeGroups": [],
+  "id": "JJZNUGFiTlq0RRwy",
+  "tags": []
+}

@@ -1,0 +1,219 @@
+{
+  "updatedAt": "2026-11-12T21:09:59.010Z",
+  "createdAt": "2026-11-12T21:08:32.294Z",
+  "id": "KhvcxeBB9LJ30dg4",
+  "name": "H3 – Escalada de privilegios agente_ia",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "e5655888-8cf9-4a9c-8e91-c4e2160b50ca",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH hallazgos AS (\n    SELECT 'privilegio_tabla' AS tipo, c.relname::text AS objeto, p.privilegio\n    FROM pg_class c\n    JOIN pg_namespace n ON n.oid = c.relnamespace\n    CROSS JOIN unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS p(privilegio)\n    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')\n      AND has_table_privilege('agente_ia', c.oid, p.privilegio)\n    UNION ALL\n    SELECT 'membresia_rol', r.rolname::text, 'MEMBER'\n    FROM pg_auth_members m\n    JOIN pg_roles r ON r.oid = m.roleid\n    JOIN pg_roles u ON u.oid = m.member\n    WHERE u.rolname = 'agente_ia' AND r.rolname <> 'pg_read_all_stats'\n    UNION ALL\n    SELECT 'atributo_rol', rolname::text, 'SUPERUSER/CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS'\n    FROM pg_roles\n    WHERE rolname = 'agente_ia'\n      AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)\n    UNION ALL\n    SELECT 'funcion', 'pg_stat_statements_reset', 'EXECUTE'\n    WHERE has_function_privilege('agente_ia', 'public.pg_stat_statements_reset(oid,oid,bigint)', 'EXECUTE')\n)\nSELECT COUNT(*)::int AS total_hallazgos,\n       COALESCE(STRING_AGG(objeto || ' (' || privilegio || ')', ' | ' ORDER BY objeto), 'Ninguno') AS detalle_hallazgos,\n       COUNT(*) > 0 AS alerta_h3\nFROM hallazgos;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        96
+      ],
+      "id": "342dcd63-9068-4f23-b7fe-efcc58322972",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "zytkOhUGCrB1TR4m",
+          "name": "Agente IA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_h3 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        96
+      ],
+      "id": "3d504ad1-6026-4a6c-8752-ff22fce296da",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA H3 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Escalada de privilegios sobre el usuario agente_ia\nSeveridad: CRÍTICA\n\nHallazgos: {{ $json.total_hallazgos }}\nDetalle: {{ $json.detalle_hallazgos }}\nFecha de detección: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\n\nUmbral: cualquier privilegio de escritura, rol adicional o atributo administrativo para agente_ia.\nAcción recomendada: Revocar los permisos (REVOKE), verificar quién ejecutó el GRANT y revisar los logs.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "9693102b-9034-464f-af69-801b6ae72f4a",
+      "name": "Send a text message",
+      "webhookId": "c2930d2b-4579-4543-b291-0b559ba9a5ae",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// evita repetir la misma alerta mientras la condicion siga igual\nconst memoria = $getWorkflowStaticData('global');\nconst actual = $input.first().json;\nconst firma = actual.alerta_h3 ? actual.detalle_hallazgos : 'SIN_CAMBIOS';\nconst nueva = actual.alerta_h3 && firma !== memoria.ultimoH3;\nmemoria.ultimoH3 = firma;\nreturn [{ json: { ...actual, alerta_h3: nueva } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "e9681bcc-0dea-43b2-b914-a53ca30951f5",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "ultimoH3": "SIN_CAMBIOS"
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "d98ac42c-578b-461c-b9b4-334db53852a8",
+  "activeVersionId": "d98ac42c-578b-461c-b9b4-334db53852a8",
+  "versionCounter": 6,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-12T21:08:32.298Z",
+      "createdAt": "2026-11-12T21:08:32.298Z",
+      "role": "workflow:owner",
+      "workflowId": "KhvcxeBB9LJ30dg4",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "H3",
+    "description": ""
+  }
+}

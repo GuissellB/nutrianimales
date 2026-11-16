@@ -1,0 +1,221 @@
+{
+  "updatedAt": "2026-11-15T20:49:28.472Z",
+  "createdAt": "2026-11-15T20:48:13.080Z",
+  "id": "xtoKyuHl9uyoX61a",
+  "name": "R4 - Intentos de autenticación fallidos",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ],
+      "id": "37e38879-e3c0-42e1-a24e-7afd892cee54",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d25febb3-d623-4688-bb75-1002b55cecc4",
+              "leftValue": "={{ $json.alerta_r4 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "d472a47c-ae11-499e-826b-e7e22fd51de9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "-5420481435",
+        "text": "=ALERTA CRÍTICA R4 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Intentos de autenticación fallidos en PostgreSQL\nSeveridad: Crítica\nIntentos fallidos en los últimos 10 minutos: {{ $json.total_intentos }}\nFecha: {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}\nUmbral: más de 5 intentos en 10 minutos\nAcción: Revisar el origen de los intentos y bloquear la IP o el usuario si no son legítimos",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "f745f7a9-4727-40ac-961e-58b9bdf61ce2",
+      "name": "Send a text message",
+      "webhookId": "70546c34-2f2a-4edf-a436-927afb326044",
+      "credentials": {
+        "telegramApi": {
+          "id": "PtIdKJ26b2UQBO2W",
+          "name": "Nutrianimales - Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// loki devuelve result vacio cuando no hay intentos\nconst r = $input.first().json.data.result;\nconst total = r.length ? Number(r[0].value[1]) : 0;\n// evita repetir la alerta mientras el total no cambie\nconst memoria = $getWorkflowStaticData('global');\nconst nueva = total > 5 && total !== memoria.ultimoR4;\nmemoria.ultimoR4 = total;\nreturn [{ json: { alerta_r4: nueva, total_intentos: total } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        96
+      ],
+      "id": "b25f6164-3e01-42e9-a65e-255c14a7510e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "http://loki:3100/loki/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "sum(count_over_time({job=\"postgres_auth\"}[10m]))"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        192,
+        96
+      ],
+      "id": "86a5fdf9-f0fe-4d9e-9edf-eb4e0dd8e61e",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "global": {
+      "ultimoR4": 0
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "df7b0765-a59f-4bc1-8931-9a94fc47dc13",
+  "activeVersionId": "df7b0765-a59f-4bc1-8931-9a94fc47dc13",
+  "versionCounter": 5,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-15T20:48:13.085Z",
+      "createdAt": "2026-11-15T20:48:13.085Z",
+      "role": "workflow:owner",
+      "workflowId": "xtoKyuHl9uyoX61a",
+      "projectId": "PLai3FF9Ji3P7DlR",
+      "project": {
+        "updatedAt": "2026-11-08T21:49:06.194Z",
+        "createdAt": "2026-11-08T21:38:56.282Z",
+        "id": "PLai3FF9Ji3P7DlR",
+        "name": "Kendra Vega <kendvega10@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "5ef370b7-c47c-4bcf-b594-4e467a24e4a3"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "r4",
+    "description": ""
+  }
+}
