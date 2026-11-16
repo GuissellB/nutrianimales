@@ -1,0 +1,15 @@
+Port 2222
+ListenAddress 127.0.0.1
+PasswordAuthentication yes
+PubkeyAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+UsePAM no
+AllowUsers victima_lab
+MaxAuthTries 1
+LogLevel VERBOSE
+PrintMotd no
+Subsystem sftp internal-sftp
+
+# Excepcion solo para el laboratorio local
+PerSourcePenaltyExemptList 127.0.0.1/32

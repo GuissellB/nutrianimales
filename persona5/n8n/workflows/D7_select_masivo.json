@@ -1,0 +1,156 @@
+{
+  "name": "P5 D7 – SELECT masivo agente_ia",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "804f6fb4-d111-470b-92aa-33bd4e3e1398",
+      "name": "Cada minuto"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(s.queryid::text,'sin-id') AS query_id,\n s.rows::text AS filas_acumuladas,\n left(s.query,160) AS consulta\nFROM public.pg_stat_statements s\nJOIN pg_catalog.pg_roles r ON r.oid = s.userid\nWHERE r.rolname = 'agente_ia'\n  AND s.query ~* '^[[:space:]]*select[[:space:]]'\n  AND (s.query ~* 'from[[:space:]]+(public[.])?clientes\\M'\n       OR s.query ~* 'from[[:space:]]+(public[.])?ventas\\M')\nORDER BY s.rows DESC LIMIT 50;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        245,
+        0
+      ],
+      "id": "57984ec5-76ec-4132-bfc2-a14d35aef228",
+      "name": "Consultar SELECT de agente_ia",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const mem=$getWorkflowStaticData('global');\nconst anteriores=mem.d7Contadores || {};\nconst listo=mem.d7Listo === true;\nconst siguiente={};\nlet total=0;\nconst muestras=[];\nfor(const item of $input.all()) {\n  const d=item.json;\n  const id=String(d.query_id || d.consulta || 'desconocido');\n  const filas=Number(d.filas_acumuladas || 0);\n  const previo=anteriores[id];\n  // Primer sondeo crea baseline. Consultas nuevas posteriores cuentan su total.\n  const delta = previo === undefined ? (listo ? filas : 0) : (filas>=previo ? filas-previo : 0);\n  siguiente[id]=filas;\n  total += delta;\n  if(delta>0) muestras.push(`${d.consulta?.slice(0,70) || id}: ${delta}`);\n}\nmem.d7Contadores=siguiente;\nmem.d7Listo=true;\nreturn [{json:{alerta:total>1000,filas_en_intervalo:total,detalle:muestras.slice(0,5).join(' | ')}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        0
+      ],
+      "id": "963585af-98f9-4880-8013-287e6fbcaacd",
+      "name": "Evaluar D7"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7ac8fecc-186f-41eb-b4aa-6ede8ef7c8e9",
+              "leftValue": "={{ $json.alerta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        695,
+        0
+      ],
+      "id": "a955810f-deb9-4417-8c78-20392b223aac",
+      "name": "¿D7 disparada?"
+    },
+    {
+      "parameters": {
+        "chatId": "CONFIGURAR_CHAT_ID",
+        "text": "=🚨 ALERTA CRÍTICA D7 - NutriAnimales S.A. | BCD 9220\n\nLectura masiva desde usuario agente_ia.\nFilas en el último sondeo: {{ $json.filas_en_intervalo }} (umbral: > 1000)\nConsultas: {{ $json.detalle }}\nFecha de detección: {{ $now.setZone(\"America/Costa_Rica\").toFormat(\"yyyy-MM-dd HH:mm:ss\") }}\nAcción: revisar evidencia, notificar al equipo y ejecutar respuesta documentada.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        -100
+      ],
+      "id": "b3096858-bd51-4938-a259-d2ff6cbd9254",
+      "name": "Notificar D7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Consultar SELECT de agente_ia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar SELECT de agente_ia": {
+      "main": [
+        [
+          {
+            "node": "Evaluar D7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar D7": {
+      "main": [
+        [
+          {
+            "node": "¿D7 disparada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿D7 disparada?": {
+      "main": [
+        [
+          {
+            "node": "Notificar D7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

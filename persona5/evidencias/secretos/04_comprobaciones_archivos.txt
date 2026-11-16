@@ -1,0 +1,13 @@
+Comprobaciones ejecutadas en macOS, 15/11/2026 (sin secretos):
+
+ls -l .env
+-rw-------@ 1 jorzero staff 135 Nov 14 22:18 .env
+ls -l .secrets/rbac-secrets.json
+-rw-------@ 1 jorzero staff 332 Nov 14 22:18 .secrets/rbac-secrets.json
+
+git check-ignore -v .env .secrets/rbac-secrets.json
+.gitignore:2:.env   .env
+.gitignore:5:.secrets/  .secrets/rbac-secrets.json
+
+git ls-files -- .env .secrets
+[sin salida: archivos no rastreados]

@@ -1,0 +1,162 @@
+{
+  "name": "R4 – Intentos de autenticación fallidos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "25b5def5-225a-4029-958a-6fac6c2f1272",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://loki:3100/loki/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "sum(count_over_time({job=\"postgres\"} |= \"password authentication failed\" [10m]))"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5a22c654-1cb0-47fb-8330-e0c5523da3be",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// R4: umbral > 5 autenticaciones fallidas en 10 min (fuente: logs de PostgreSQL via Filebeat/Logstash/Loki).\n// Si Loki no devuelve lineas, el resultado viene vacio (0 intentos).\nconst memoria = $getWorkflowStaticData('global');\nconst r = $input.first().json.data.result;\nconst total = r.length ? Number(r[0].value[1]) : 0;\nconst umbral = 5;\nconst sobre = total > umbral;\nconst alerta = sobre && !memoria.r4Activa;\nmemoria.r4Activa = sobre;\nreturn [{ json: { alerta_r4: alerta, total_intentos: total, umbral } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "e08ed52c-2808-42f0-ae16-da61afc1f12a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d4c72c9c-fa77-40d3-b04d-ab71a40347b6",
+              "leftValue": "={{ $json.alerta_r4 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "53eda6e3-9d38-420a-bb6d-8b49969db104",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "CONFIGURAR_CHAT_ID",
+        "text": "=ALERTA CRÍTICA R4 - NutriAnimales S.A. | Lead University BCD 9220\n\nTipo: Intentos de autenticación fallidos en PostgreSQL\nSeveridad: Crítica\nIntentos fallidos en los últimos 10 minutos: {{ $json.total_intentos }} (umbral: > {{ $json.umbral }})\nFecha: {{ $now.setZone('America/Costa_Rica').toFormat('yyyy-MM-dd HH:mm:ss') }}\nAcción: Revisar los logs de PostgreSQL, identificar usuario e IP de origen y bloquear la fuente si no es legítima.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "69620ccf-b06f-45b5-b816-0f1d9bdb1ed7",
+      "name": "Send a text message"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
