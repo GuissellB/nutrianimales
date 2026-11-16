@@ -1,1 +1,0 @@
-Colocar aquí 01_comando.png, 02_deteccion.png, 03_registro.png, 04_respuesta.png. No incluir credenciales.
