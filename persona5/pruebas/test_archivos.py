@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 class TestFlujos(unittest.TestCase):
     def test_workflows(self):
         files = sorted((ROOT / 'n8n/workflows').glob('*.json'))
-        self.assertEqual(len(files), 5)
+        self.assertEqual(len(files), 2)
         for f in files:
             with self.subTest(workflow=f.name):
                 data = json.loads(f.read_text('utf-8'))
@@ -29,7 +29,7 @@ class TestFlujos(unittest.TestCase):
                             self.assertEqual(edge['type'], 'main')
                 for n in nodes:
                     self.assertNotIn('credentials', n)
-                    if n['type'].endswith('.telegram') and f.name != 'A2_bloqueo_sql_injection_subflujo.json':
+                    if n['type'].endswith('.telegram'):
                         self.assertEqual(n['parameters']['chatId'], 'CONFIGURAR_CHAT_ID')
 
     def test_no_secret_literals(self):
@@ -39,6 +39,16 @@ class TestFlujos(unittest.TestCase):
                 import re
                 self.assertIsNone(re.search(r'"chatId"\s*:\s*"-\d{6,}"', text))
                 self.assertNotIn('\"credentials\": {', text)
+
+    def test_flujos_oficiales(self):
+        for n in ('H3_escalada_privilegios.json', 'D7_exfiltracion_masiva.json'):
+            f = ROOT.parent / 'n8n' / 'workflows' / n
+            self.assertTrue(f.is_file(), str(f))
+            data = json.loads(f.read_text('utf-8'))
+            self.assertTrue(any(x['type'].endswith('.postgres') for x in data['nodes']))
+        self.assertFalse((ROOT / 'n8n/workflows/H3_grant_agente_ia.json').exists())
+        self.assertFalse((ROOT / 'n8n/workflows/D7_select_masivo.json').exists())
+        self.assertTrue((ROOT / 'n8n/snippets/filtro_sql_injection.js').exists())
 
     def test_required_files(self):
         for path in (

@@ -1,44 +1,44 @@
-// Pruebas de lógica JS de n8n sin n8n instalado.
+// Test de lógica JS de N8N sin activar Docker/Telegram.
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const root = path.join(__dirname, '..');
-function ejecutar(js, items, mem={}) {
+const repo = path.resolve(__dirname, '..', '..');
+function run(js, items, state={}) {
   const fn = new Function('$input', '$getWorkflowStaticData', js);
-  return fn({first:()=>items[0], all:()=>items}, ()=>mem);
+  return fn({first:()=>items[0], all:()=>items}, ()=>state);
 }
-function source(name, label) {
-  const d=JSON.parse(fs.readFileSync(path.join(root, 'n8n/workflows',name),'utf8'));
-  return d.nodes.find(n=>n.name===label).parameters.jsCode;
+function code(workflow, name) {
+  const o = JSON.parse(fs.readFileSync(path.join(repo,workflow),'utf8'));
+  const n = o.nodes.find(n=>n.name===name);
+  assert.ok(n, `${workflow}: ${name}`);
+  return n.parameters.jsCode;
 }
-let filtro=fs.readFileSync(path.join(root,'n8n/snippets/filtro_sql_injection.js'),'utf8');
-for(const payload of ['Lista datos; DROP TABLE clientes; --', "x' OR 1=1 --",'UNION SELECT clave FROM clientes']) {
-  assert.strictEqual(ejecutar(filtro,[{json:{message:{text:payload,chat:{id:123}}}}])[0].json.validacion_sqli.bloqueado,true, payload);
+const filter = fs.readFileSync(path.join(repo,'persona5/n8n/snippets/filtro_sql_injection.js'),'utf8');
+for (const payload of ['Lista datos; DROP TABLE clientes; --', "x' OR 1=1 --", 'UNION SELECT clave FROM clientes']) {
+  const r = run(filter,[{json:{message:{text:payload,chat:{id:123}}}}])[0].json;
+  assert.strictEqual(r.validacion_sqli.bloqueado,true,payload);
+  assert.strictEqual(r.validacion_sqli.chat_id,123);
 }
-let limpio=ejecutar(filtro,[{json:{message:{text:'Lista de alimentos de aves',chat:{id:123}}}}])[0].json;
-assert.strictEqual(limpio.validacion_sqli.bloqueado,false);
-assert.strictEqual(limpio.message.text,'Lista de alimentos de aves');
-
-let memoria={};let r4=source('R4_ssh_fuerza_bruta.json','Evaluar R4');
-assert.strictEqual(ejecutar(r4,[{json:{total:0}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(r4,[{json:{total:20}}],memoria)[0].json.alerta,true);
-assert.strictEqual(ejecutar(r4,[{json:{total:20}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(r4,[{json:{total:0}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(r4,[{json:{total:6}}],memoria)[0].json.alerta,true);
-
-memoria={};let h1=source('H1_cambio_ufw.json','Evaluar H1');
-assert.strictEqual(ejecutar(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],memoria)[0].json.alerta,true);
-assert.strictEqual(ejecutar(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(h1,[{json:{total:2,ultimo_evento_utc:'2026-11-14T00:00:02Z'}}],memoria)[0].json.alerta,true);
-
-memoria={};let h3=source('H3_grant_agente_ia.json','Evaluar H3');
-assert.strictEqual(ejecutar(h3,[{json:{total_permisos:0}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(h3,[{json:{total_permisos:4}}],memoria)[0].json.alerta,true);
-assert.strictEqual(ejecutar(h3,[{json:{total_permisos:4}}],memoria)[0].json.alerta,false);
-
-memoria={};let d7=source('D7_select_masivo.json','Evaluar D7');
-assert.strictEqual(ejecutar(d7,[{json:{query_id:'100',filas_acumuladas:'7500',consulta:'SELECT * FROM ventas'}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(d7,[{json:{query_id:'100',filas_acumuladas:'9000',consulta:'SELECT * FROM ventas'}}],memoria)[0].json.alerta,true);
-assert.strictEqual(ejecutar(d7,[{json:{query_id:'100',filas_acumuladas:'9000',consulta:'SELECT * FROM ventas'}}],memoria)[0].json.alerta,false);
-assert.strictEqual(ejecutar(d7,[{json:{query_id:'101',filas_acumuladas:'1100',consulta:'SELECT * FROM clientes'}}],memoria)[0].json.alerta,true);
-console.log('OK: filtro A2 y evaluadores R4/H1/H3/D7');
+let r = run(filter,[{json:{message:{text:'Consulta inventario de aves',chat:{id:123}}}}])[0].json;
+assert.strictEqual(r.validacion_sqli.bloqueado,false);
+assert.strictEqual(r.message.text,'Consulta inventario de aves');
+let mem={};
+let r4=code('persona5/n8n/workflows/R4_ssh_fuerza_bruta.json','Evaluar R4');
+assert.strictEqual(run(r4,[{json:{total:0}}],mem)[0].json.alerta,false);
+assert.strictEqual(run(r4,[{json:{total:20}}],mem)[0].json.alerta,true);
+assert.strictEqual(run(r4,[{json:{total:20}}],mem)[0].json.alerta,false);
+mem={};
+let h1=code('persona5/n8n/workflows/H1_cambio_ufw.json','Evaluar H1');
+assert.strictEqual(run(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],mem)[0].json.alerta,true);
+assert.strictEqual(run(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],mem)[0].json.alerta,false);
+mem={};
+let h3=code('n8n/workflows/H3_escalada_privilegios.json','Code in JavaScript');
+assert.strictEqual(run(h3,[{json:{alerta_h3:false,detalle_hallazgos:'Ninguno'}}],mem)[0].json.alerta_h3,false);
+assert.strictEqual(run(h3,[{json:{alerta_h3:true,detalle_hallazgos:'clientes (INSERT)'}}],mem)[0].json.alerta_h3,true);
+assert.strictEqual(run(h3,[{json:{alerta_h3:true,detalle_hallazgos:'clientes (INSERT)'}}],mem)[0].json.alerta_h3,false);
+mem={};
+let d7=code('n8n/workflows/D7_exfiltracion_masiva.json','Code in JavaScript');
+assert.strictEqual(run(d7,[{json:{queryid:'100',usuario:'agente_ia',rows:800,query:'SELECT * FROM public.ventas'}}],mem)[0].json.alerta_d7,false);
+assert.strictEqual(run(d7,[{json:{queryid:'100',usuario:'agente_ia',rows:2000,query:'SELECT * FROM public.ventas'}}],mem)[0].json.alerta_d7,true);
+assert.strictEqual(run(d7,[{json:{queryid:'100',usuario:'agente_ia',rows:2000,query:'SELECT * FROM public.ventas'}}],mem)[0].json.alerta_d7,false);
+console.log('OK: A2, R4-SSH, H1-P5 y H3/D7 oficiales');

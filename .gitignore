@@ -39,3 +39,11 @@ docker-compose.test.yml
 .vscode/
 
 n8n/certificates/
+
+# Persona 5: bitacoras y archivos temporales
+persona5/evidencias/bitacora.csv
+persona5/evidencias/bitacora_bash.log
+persona5/observability/logs/*.log
+**/__pycache__/
+**/*.pyc
+.DS_Store

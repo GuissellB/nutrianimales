@@ -1,8 +1,0 @@
-# Overlay para Windows + Docker Desktop (no existe UFW ni /var/log/ufw.log).
-# Filebeat lee ./observability/logs/ufw.log; ataques/A3_apertura_puerto.ps1 escribe ahi
-# una linea con el MISMO formato que genera UFW (emulacion documentada en el informe).
-# Uso: combinar DESPUES de docker-compose.observability.yml.
-services:
-  filebeat:
-    volumes:
-      - ./observability/logs/ufw.log:/var/log/ufw.log:ro

@@ -8,7 +8,7 @@
 
 ### 8.1 Metodología
 
-Se implementaron cinco escenarios en un laboratorio Docker aislado, utilizando PostgreSQL 16, n8n y alertas de Telegram. Para A1 se instaló un OpenSSH de pruebas que escucha solo dentro de su contenedor. Para A3 se ofrece un modo de emulación cuando se utiliza Docker Desktop, y una alternativa de UFW real únicamente en una VM Linux autorizada. La detección se implementó mediante sondeos programados cada 60 segundos. Se registran hora del inicio, hora de la detección, tiempo transcurrido y acción de respuesta.
+Se implementaron cinco escenarios en un laboratorio Docker aislado, utilizando PostgreSQL 16, n8n y alertas de Telegram. Para A1 se instaló un OpenSSH de pruebas que escucha solo dentro de su contenedor. Para A3 se ofrece un modo de emulación cuando se utiliza Docker Desktop, y una alternativa de UFW real únicamente en una VM Linux autorizada. Las pruebas documentadas utilizan los flujos H3, D7 y R4-SSH del laboratorio personal de n8n, mediante sondeos aproximados cada 60 segundos. H1-P5 permanece como adaptador para A3. Estas pruebas no implican modificaciones ni nuevas validaciones de los workflows oficiales del equipo. Se registran hora del inicio, hora de la detección, tiempo transcurrido y acción de respuesta.
 
 **Advertencia metodológica:** La alerta R4 se describe como fallos de PostgreSQL en la sección de alertas del PDF (p. 5), pero A1 pide SSH (p. 11). Este laboratorio verifica el ataque SSH y lo identifica explícitamente como R4-SSH. H1 detecta eventos del ejecutor A3, no cualquier cambio independiente del firewall. D7 detecta lectura masiva, no salida efectiva de información.
 
@@ -74,7 +74,7 @@ La tabla `auditoria_datos` fue diseñada con triggers para INSERT/UPDATE/DELETE 
 
 ### 8.9 Conclusión y mejoras
 
-Los cinco escenarios permiten evaluar controles preventivos y detectivos: validación previa a N8N, alertas de eventos de autenticación, cambios de política de red, mínimos privilegios y lecturas masivas. La capacidad real del sistema solo puede afirmarse al completar las pruebas en vivo y adjuntar sus capturas. Se recomienda en un entorno productivo: correlación en un SIEM, monitoreo independiente del firewall y acceso SSH, reglas de detección persistentes, pruebas periódicas y restricción de uso de cuentas administrativas.
+Los cinco escenarios permiten evaluar controles preventivos y detectivos: validación previa a N8N, alertas de eventos de autenticación, cambios de política de red, mínimos privilegios y lecturas masivas. La capacidad real del sistema solo puede afirmarse al completar las pruebas en vivo y adjuntar sus capturas. La prueba A2 por webhook HTTP no valida recepción directa por Telegram; A3 emulada no valida UFW real. Se recomienda en un entorno productivo: correlación en un SIEM, monitoreo independiente del firewall y acceso SSH, reglas de detección persistentes, pruebas periódicas y restricción de uso de cuentas administrativas.
 
 ## 9. Gestión de secretos
 

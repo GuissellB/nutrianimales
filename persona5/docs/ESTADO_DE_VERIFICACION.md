@@ -1,18 +1,18 @@
-# Estado de verificación del proyecto — 15 de noviembre de 2026
+# Estado de verificación — 16 de noviembre de 2026
 
-| Elemento | Evidencia entregada | Estado |
+Estado basado en evidencias históricas y pruebas locales del 16/11/2026. A1 y A2 se comprobaron nuevamente; A4 y A5 conservan sus validaciones anteriores. No se atribuyen estas pruebas a los workflows oficiales del equipo.
+
+| Escenario | Evidencias preservadas | Limitaciones / siguiente acción |
 |---|---|---|
-| A1/R4-SSH | Terminal, n8n, Telegram | Detectado |
-| A2 | Webhook HTTP n8n y bloqueo JSON | Parcial: falta entrada Telegram |
-| A3/H1 | No se agrega evidencia ficticia | Pendiente Linux / UFW real |
-| A4/H3 | GRANT, REVOKE, Telegram | Detectado y revertido |
-| A5/D7 | Terminal, Telegram (2.200 filas acumuladas) | Detectado; no hubo salida de datos |
-| 6.1 Groq | Clave válida, 401, nueva clave | Verificado con Header Auth en n8n |
-| 6.2 | ls -l de .env y RBAC | chmod 600 verificado |
-| 6.3 | check-ignore y git ls-files | Excluidos y no rastreados |
-| 12 medidas hardening | Implementación visible en repo; capturas de otros integrantes no todas disponibles | Por consolidar |
-| 17 flujos | Catálogo y ramas del equipo, no todas las ejecuciones disponibles | Por consolidar |
+| A1 / R4-SSH | 20 intentos SSH, logs y Telegram | VALIDADO el 16/11/2026 con detector R4-SSH personal. El R4 oficial de PostgreSQL es independiente. |
+| A2 | Webhook HTTP local y respuesta JSON | FILTRO VALIDADO el 16/11/2026: decision BLOQUEADO. Integracion directa desde Telegram pendiente. |
+| A3 / H1 | `evidencias/A3/PENDIENTE.md` | Pendiente prueba UFW real; en Mac solo emulación. |
+| A4 / H3 | GRANT, REVOKE, Telegram | VALIDADO ANTERIORMENTE: alerta H3 recibida y privilegio INSERT revocado. Evidencia preservada. |
+| A5 / D7 | SELECT masivo, Telegram | VALIDADO ANTERIORMENTE: D7 detecto 2.200 filas el 15/11/2026. Sin exfiltracion externa demostrada. |
+| Rotación de Groq | Clave válida, revocada y nueva | Revisar capturas para excluir secretos antes de publicarlas. |
 
-**Trazabilidad:** capturas de A1/A2/A4/A5 extraídas del Word suministrado por Persona 5; capturas Groq suministradas directamente. **El repositorio `main` no contiene necesariamente todas las ramas integradas.**
+## Cambios de estructura
 
-**Seguridad:** nunca subir `.env`, `.secrets/`, claves privadas, tokens o credenciales exportadas. Los JSON de Persona 5 se distribuyen sin credenciales. Un `docker compose restart` sin recreación no carga automáticamente variables de entorno cambiadas en Compose.
+Se eliminaron duplicados de `.env.example`, `.gitignore`, H3/D7, antiguos overlays de Filebeat/Logstash, copias de R2/H4 y el sistema A2 con webhook HTTP paralelo. Permanecen los 5 scripts, las evidencias, los documentos y los adaptadores de laboratorio R4-SSH/H1-P5 porque todavía no existe una fuente equivalente para esas pruebas en los flujos oficiales. **No se modificaron** `main`, los workflows oficiales de `n8n/workflows/`, los certificados, la base ni los secretos.
+
+No inventar resultados nuevos ni presentar la emulación A3 como cambio real del firewall.
