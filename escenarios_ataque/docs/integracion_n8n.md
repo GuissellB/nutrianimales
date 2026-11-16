@@ -5,9 +5,9 @@
 ## A1 y A3: adaptadores únicamente de laboratorio
 
 - R4 oficial: consulta Loki para autenticación fallida **PostgreSQL**; no detecta por sí solo el SSH del laboratorio.
-- Para el A1 SSH aislado, importar temporalmente `persona5/n8n/workflows/R4_ssh_fuerza_bruta.json`. Requiere `persona5-eventos`, que lee `ssh.log` y no reemplaza el R4 del equipo.
+- Para el A1 SSH aislado, importar temporalmente `escenarios_ataque/n8n/workflows/R4_ssh_fuerza_bruta.json`. Requiere `persona5-eventos`, que lee `ssh.log` y no reemplaza el R4 del equipo.
 - H1 oficial: consulta Loki para **tráfico** UFW ALLOW `DPT=5432` y no demuestra cambios de reglas.
-- Para A3 emulado, importar temporalmente `persona5/n8n/workflows/H1_cambio_ufw.json`, cuya fuente es una marca local generada por el script. Etiquetar claramente como emulación. Si el requisito es UFW real, probarlo en una VM Linux controlada, restaurar la regla y confirmar que Loki observa un evento real.
+- Para A3 emulado, importar temporalmente `escenarios_ataque/n8n/workflows/H1_cambio_ufw.json`, cuya fuente es una marca local generada por el script. Etiquetar claramente como emulación. Si el requisito es UFW real, probarlo en una VM Linux controlada, restaurar la regla y confirmar que Loki observa un evento real.
 - Ambos adaptadores permanecen desactivados fuera de la prueba; usar credenciales del bot existente y configurar el destino de notificaciones por UI, nunca tokens en Git.
 
 ## A2: filtro dentro del Telegram Trigger EXISTENTE
@@ -22,7 +22,7 @@ Telegram Trigger existente
          FALSE -> agente IA / lógica original del bot
 ```
 
-Copiar el código del archivo `persona5/n8n/snippets/filtro_sql_injection.js` a un nodo Code. Este preserva el mensaje original y el chat ID; no debe ejecutar SQL de entrada. La rama FALSE continúa al flujo original sin cambiarlo.
+Copiar el código del archivo `escenarios_ataque/n8n/snippets/filtro_sql_injection.js` a un nodo Code. Este preserva el mensaje original y el chat ID; no debe ejecutar SQL de entrada. La rama FALSE continúa al flujo original sin cambiarlo.
 
 La rama TRUE usa una credencial con permiso de `INSERT` en `alertas_auditoria` (por ejemplo `ti_db`) y **parámetros SQL**:
 

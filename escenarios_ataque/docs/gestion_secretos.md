@@ -29,4 +29,4 @@ El procedimiento del profesor (p. 12) asume secretos almacenados en `.env`, pero
 
 Si el equipo almacena la key vía `.env`, la mera instrucción `docker compose restart n8n` puede **no cargar nuevos valores de entorno** en un contenedor existente. Aplicar `docker compose up -d --force-recreate n8n` con la configuración correcta, sin eliminar PostgreSQL ni volúmenes, después de coordinar el cambio con Persona 3.
 
-Prueba local de higiene: `pwsh -File persona5/ataques/verificar-secretos.ps1`. El script no muestra los valores de `.env`.
+Prueba local de higiene: `pwsh -File escenarios_ataque/ataques/verificar-secretos.ps1`. El script no muestra los valores de `.env`.

@@ -18,7 +18,7 @@ function Assert-Laboratorio([switch]$ConfirmarLaboratorio) {
 function Assert-DockerContenedor([string]$Nombre) {
     $estado = & docker inspect -f '{{.State.Running}}' $Nombre 2>$null
     if ($LASTEXITCODE -ne 0 -or $estado -ne 'true') {
-        throw "No se está ejecutando el contenedor $Nombre. Consultar persona5/README.md."
+        throw "No se está ejecutando el contenedor $Nombre. Consultar escenarios_ataque/README.md."
     }
 }
 function Assert-Postgres { Assert-DockerContenedor $script:Contenedor }

@@ -47,5 +47,5 @@ try {
     }
     Registrar-Evento A3 RESPUESTA 'Cierre automático si modo LinuxReal; no hubo cambio de firewall en modo emulado.'
 }
-Write-Host 'Verificar: Get-Content persona5/observability/logs/ufw.log -Tail 5'
+Write-Host 'Verificar: Get-Content escenarios_ataque/observability/logs/ufw.log -Tail 5'
 Write-Host 'No se esperan filas en auditoria_datos: UFW es configuración del host.'

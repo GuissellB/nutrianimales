@@ -27,8 +27,8 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 ### 8.3 A1 — Fuerza bruta SSH
 
 - **Objetivo:** provocar 20 fallos de autenticación reales contra un `sshd` aislado, superar 5 fallos en 10 minutos.
-- **Ejecución:** `pwsh -File persona5/ataques/A1_fuerza_bruta.ps1 -ConfirmarLaboratorio` (o Bash A1).
-- **Fuente:** `persona5/observability/logs/ssh.log` con líneas `Failed password`.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A1_fuerza_bruta.ps1 -ConfirmarLaboratorio` (o Bash A1).
+- **Fuente:** `escenarios_ataque/observability/logs/ssh.log` con líneas `Failed password`.
 - **Alerta:** R4-SSH en n8n y Telegram. Hora del aviso: [ ].
 - **Resultado:** [ ]. **Acción:** revisar IP/usuario; aislamiento del laboratorio / control de acceso: [ ].
 - **Capturas:** `evidencias/A1/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
@@ -46,15 +46,15 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 
 - **Objetivo:** verificar la alerta H1 cuando se permite el puerto de PostgreSQL en una política UFW.
 - **Modo empleado:** [emulación Docker Desktop / UFW real en VM Linux].
-- **Ejecución:** `pwsh -File persona5/ataques/A3_apertura_puerto.ps1 -ConfirmarLaboratorio` (añadir `-RealLinux` solo si aplica).
-- **Fuente:** `persona5/observability/logs/ufw.log` (evento de cambio de prueba).
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A3_apertura_puerto.ps1 -ConfirmarLaboratorio` (añadir `-RealLinux` solo si aplica).
+- **Fuente:** `escenarios_ataque/observability/logs/ufw.log` (evento de cambio de prueba).
 - **Resultado:** [ ]. **Respuesta:** [revertir regla real / cerrar emulación, no se abrió el puerto].
 - **Capturas:** `evidencias/A3/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
 
 ### 8.6 A4 — Escalada de privilegios
 
 - **Objetivo:** simular un GRANT administrativo de INSERT a `agente_ia`, que debe ser de solo lectura.
-- **Ejecución:** `pwsh -File persona5/ataques/A4_escalada_privilegios.ps1 -ConfirmarLaboratorio`.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A4_escalada_privilegios.ps1 -ConfirmarLaboratorio`.
 - **Fuente:** `pg_class` + `has_table_privilege`, o `information_schema.role_table_grants`.
 - **Resultado:** H3 [ ]. **Respuesta:** `REVOKE INSERT ON ALL TABLES IN SCHEMA public FROM agente_ia;`; verificación final: [ ].
 - **Capturas:** `evidencias/A4/01_comando.png`, `02_deteccion.png`, `03_registro.png`, `04_respuesta.png`.
@@ -62,7 +62,7 @@ Meta del documento: A2 inmediato; A1, A3, A4 y A5 < 5 minutos. Calcular latencia
 ### 8.7 A5 — Lectura masiva de datos
 
 - **Objetivo:** detectar más de 1000 filas seleccionadas en tablas sensibles por `agente_ia`.
-- **Ejecución:** `pwsh -File persona5/ataques/A5_exfiltracion.ps1 -ConfirmarLaboratorio` después del baseline.
+- **Ejecución:** `pwsh -File escenarios_ataque/ataques/A5_exfiltracion.ps1 -ConfirmarLaboratorio` después del baseline.
 - **Fuente:** `public.pg_stat_statements` con `rolname='agente_ia'`, `rows` y `calls`.
 - **Resultado:** D7 [ ]. **Respuesta:** investigar legitimidad y revisar credenciales si corresponde: [ ].
 - **Limitación:** los resultados SQL se descartan en `/dev/null`; es una emulación de lectura masiva, no una exfiltración fuera del entorno.

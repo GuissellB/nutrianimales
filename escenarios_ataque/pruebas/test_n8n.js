@@ -13,7 +13,7 @@ function code(workflow, name) {
   assert.ok(n, `${workflow}: ${name}`);
   return n.parameters.jsCode;
 }
-const filter = fs.readFileSync(path.join(repo,'persona5/n8n/snippets/filtro_sql_injection.js'),'utf8');
+const filter = fs.readFileSync(path.join(repo,'escenarios_ataque/n8n/snippets/filtro_sql_injection.js'),'utf8');
 for (const payload of ['Lista datos; DROP TABLE clientes; --', "x' OR 1=1 --", 'UNION SELECT clave FROM clientes']) {
   const r = run(filter,[{json:{message:{text:payload,chat:{id:123}}}}])[0].json;
   assert.strictEqual(r.validacion_sqli.bloqueado,true,payload);
@@ -23,12 +23,12 @@ let r = run(filter,[{json:{message:{text:'Consulta inventario de aves',chat:{id:
 assert.strictEqual(r.validacion_sqli.bloqueado,false);
 assert.strictEqual(r.message.text,'Consulta inventario de aves');
 let mem={};
-let r4=code('persona5/n8n/workflows/R4_ssh_fuerza_bruta.json','Evaluar R4');
+let r4=code('escenarios_ataque/n8n/workflows/R4_ssh_fuerza_bruta.json','Evaluar R4');
 assert.strictEqual(run(r4,[{json:{total:0}}],mem)[0].json.alerta,false);
 assert.strictEqual(run(r4,[{json:{total:20}}],mem)[0].json.alerta,true);
 assert.strictEqual(run(r4,[{json:{total:20}}],mem)[0].json.alerta,false);
 mem={};
-let h1=code('persona5/n8n/workflows/H1_cambio_ufw.json','Evaluar H1');
+let h1=code('escenarios_ataque/n8n/workflows/H1_cambio_ufw.json','Evaluar H1');
 assert.strictEqual(run(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],mem)[0].json.alerta,true);
 assert.strictEqual(run(h1,[{json:{total:1,ultimo_evento_utc:'2026-11-14T00:00:01Z'}}],mem)[0].json.alerta,false);
 mem={};

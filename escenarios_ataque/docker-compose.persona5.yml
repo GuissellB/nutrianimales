@@ -4,11 +4,11 @@
 services:
   persona5-ssh:
     build:
-      context: ./persona5/lab/ssh
+      context: ./escenarios_ataque/lab/ssh
     container_name: nutrianimales-persona5-ssh
     restart: unless-stopped
     volumes:
-      - ./persona5/observability/logs:/var/log/persona5
+      - ./escenarios_ataque/observability/logs:/var/log/persona5
     networks:
       - nutrianimales-net
     security_opt:
@@ -23,8 +23,8 @@ services:
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
     volumes:
-      - ./persona5/lab/eventos/servidor_eventos.py:/app/servidor_eventos.py:ro
-      - ./persona5/observability/logs:/data/logs:ro
+      - ./escenarios_ataque/lab/eventos/servidor_eventos.py:/app/servidor_eventos.py:ro
+      - ./escenarios_ataque/observability/logs:/data/logs:ro
     networks:
       - nutrianimales-net
     healthcheck:

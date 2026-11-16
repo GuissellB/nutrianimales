@@ -11,7 +11,7 @@ DB=nutrianimales_db
 scenario="${1:-}"
 
 if [[ "${2:-}" != '--confirmo-laboratorio' ]]; then
-  echo 'Uso: bash persona5/ataques/ejecutar-macos-linux.sh A1|A2|A3|A4|A5 --confirmo-laboratorio' >&2
+  echo 'Uso: bash escenarios_ataque/ataques/ejecutar-macos-linux.sh A1|A2|A3|A4|A5 --confirmo-laboratorio' >&2
   exit 2
 fi
 if [[ ! "$scenario" =~ ^A[1-5]$ ]]; then echo 'Escenario inválido' >&2;exit 2;fi
@@ -34,7 +34,7 @@ case "$scenario" in
     log_event 'INICIO: 20 intentos SSH localhost dentro del contenedor'
     docker exec "$SSH_CONT" /usr/local/bin/ataque_controlado.sh 20
     log_event 'FIN: consultar R4, Telegram y ssh.log'
-    echo 'Ver persona5/observability/logs/ssh.log (Failed password) y Telegram R4'
+    echo 'Ver escenarios_ataque/observability/logs/ssh.log (Failed password) y Telegram R4'
     ;;
   A2)
     echo 'Enviar al bot de Telegram y capturar el bloqueo (sin ejecutar SQL):'
@@ -46,7 +46,7 @@ case "$scenario" in
     mkdir -p "$P5_ROOT/observability/logs"
     printf '%s | PERSONA5 UFW CHANGE ALLOW 5432/tcp | UFW_EMULADO_MACOS_DOCKER\n' "$(utc)" >> "$P5_ROOT/observability/logs/ufw.log"
     log_event 'INICIO: UFW simulado; no se abrió el puerto'
-    echo 'Revisar alerta H1 en Telegram y persona5/observability/logs/ufw.log'
+    echo 'Revisar alerta H1 en Telegram y escenarios_ataque/observability/logs/ufw.log'
     ;;
   A4)
     check_container "$DB_CONT"
